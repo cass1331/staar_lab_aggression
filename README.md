@@ -1,7 +1,7 @@
 
 # staar_lab_aggression
 
-# We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
+## We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
 
 ## ArCOM.py
 
