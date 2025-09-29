@@ -1,6 +1,18 @@
 # staar_lab_aggression
 
-#We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
+# We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
+
+## ArCOM.py
+
+Read/write for Arduino
+
+## pulse_pal.py
+
+Define interactions for PulsePal
+
+
+
+## TBD
 
 Light conditions
 - We’ll use one LED (one PulsePal port).
