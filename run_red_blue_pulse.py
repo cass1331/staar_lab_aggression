@@ -3,6 +3,7 @@
 from pulse_pal import PulsePalObject, PulsePalError
 import time
 import random
+from tkinter import tk
 
 # --- Parameters You Can Change ---
 SERIAL_PORT = 'COM4'                # Your Pulse Pal's port name
@@ -35,7 +36,7 @@ channel = channels[0] #pick 0 for blue or 1 for red
 
 time_log = [] #log times of stimulations
 
-while len(time_log) < 20: #run 20 trials
+def run_trial():
     choice = random.random() > 0.5 #choose whether or not the stim will be triggered
     try:
         # 1. Connect to the Pulse Pal
@@ -106,6 +107,14 @@ while len(time_log) < 20: #run 20 trials
         print(f"\nERROR: A Pulse Pal error occurred: {e}")
     except Exception as e:
         print(f"\nERROR: A general error occurred: {e}")
+
+#make button to run trials on demand
+root = tk.Tk()
+root.title("Red/Blue Pulse Trigger")
+root.geometry("300x150")    
+button = tk.Button(root, text="Run Trial", command=run_trial)
+button.pack(pady=20)
+root.mainloop()     
 
 
 file_path = 'red_blue_time_log.txt'
