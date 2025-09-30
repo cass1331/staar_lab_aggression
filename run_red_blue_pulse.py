@@ -3,7 +3,7 @@
 from pulse_pal import PulsePalObject, PulsePalError
 import time
 import random
-from tkinter import tk
+import tkinter as tk
 
 # --- Parameters You Can Change ---
 SERIAL_PORT = 'COM4'                # Your Pulse Pal's port name
@@ -36,7 +36,15 @@ channel = channels[0] #pick 0 for blue or 1 for red
 
 time_log = [] #log times of stimulations
 
-def run_trial():
+#set up GUI window to run trials on demand
+root = tk.Tk()
+channel_var = tk.StringVar(value="BLUE")
+root.title("Red/Blue Pulse Trigger")
+root.geometry("300x150") 
+
+def run_trial(): 
+    channel = channel_var.get()
+    print(f"You picked the {channel} channel.")
     choice = random.random() > 0.5 #choose whether or not the stim will be triggered
     try:
         # 1. Connect to the Pulse Pal
@@ -64,7 +72,7 @@ def run_trial():
             myPulsePal.programOutputChannelParam('isBiphasic', channel=RED, value=0)
             myPulsePal.programOutputChannelParam('phase1Voltage', channel=RED, value=PULSE_VOLTAGE_RED)
             myPulsePal.programOutputChannelParam('phase1Duration', channel=RED, value=ON_DURATION_SECONDS_RED)
-            myPulsePal.programOutputChannelParam('interPulseInterval', channel=BLUE, value=OFF_DURATION_SECONDS_RED)
+            myPulsePal.programOutputChannelParam('interPulseInterval', channel=RED, value=OFF_DURATION_SECONDS_RED)
             myPulsePal.programOutputChannelParam('pulseTrainDuration', channel=RED, value=TOTAL_DURATION_SECONDS)
             print("Channel 2 configuration complete.")
         
@@ -109,12 +117,13 @@ def run_trial():
         print(f"\nERROR: A general error occurred: {e}")
 
 #make button to run trials on demand
-root = tk.Tk()
-root.title("Red/Blue Pulse Trigger")
-root.geometry("300x150")    
+tk.Label(root, text="Select Channel:").pack()
+tk.Radiobutton(root, text="BLUE", variable=channel_var, value="BLUE").pack(anchor='w')
+tk.Radiobutton(root, text="RED", variable=channel_var, value="RED").pack(anchor='w')
+   
 button = tk.Button(root, text="Run Trial", command=run_trial)
 button.pack(pady=20)
-root.mainloop()     
+   
 
 
 file_path = 'red_blue_time_log.txt'
@@ -122,3 +131,7 @@ with open(file_path, 'w') as file:
     for lines in time_log:
         line_content = ' '.join(map(str, lines))
         file.write(line_content + '\n')
+
+print(f"Time log saved to {file_path}")
+
+root.mainloop()  
