@@ -39,7 +39,7 @@ Potential challenge
 - Timestamp logging
 - Randomly turning on/off LED
 - Playing multiple trials automatically
+- User-controlled number of trials (button GUI)
 
 ## Things to do
-- User-controlled number of trials (button GUI?)
 - Synced timestamps
