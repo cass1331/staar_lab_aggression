@@ -3,6 +3,7 @@
 from pulse_pal import PulsePalObject, PulsePalError
 import time
 import random
+import datetime
 import tkinter as tk
 
 # --- Parameters You Can Change ---
@@ -29,10 +30,6 @@ print("--- Red/Blue 5HT MEA Experiment ---")
 #blue
 period = 1.0 / PULSE_FREQUENCY_HZ_BLUE
 pulse_duration_blue = period * 0.5
-#red
-
-channels = ['BLUE', 'RED']
-channel = channels[0] #pick 0 for blue or 1 for red
 
 time_log = [] #log times of stimulations
 
@@ -123,10 +120,10 @@ tk.Radiobutton(root, text="RED", variable=channel_var, value="RED").pack(anchor=
    
 button = tk.Button(root, text="Run Trial", command=run_trial)
 button.pack(pady=20)
-   
+root.mainloop()  
 
-
-file_path = 'red_blue_time_log.txt'
+time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+file_path = 'red_blue_time_log_' + time_rn + '.txt'
 with open(file_path, 'w') as file:
     for lines in time_log:
         line_content = ' '.join(map(str, lines))
@@ -134,4 +131,3 @@ with open(file_path, 'w') as file:
 
 print(f"Time log saved to {file_path}")
 
-root.mainloop()  
