@@ -15,7 +15,7 @@ Define interactions for PulsePal
 
 Define interactions for PulsePal and get trigger timestamps logged
 
-## `run_red_blue_pulse_timed.py``
+## `run_red_blue_pulse_timed.py`
 
 Define interactions for PulsePal and get trigger timestamps logged, also controls camera/image acquistion
 and logs camera timestamp for each frame
@@ -24,6 +24,7 @@ and logs camera timestamp for each frame
 
 Example/included code from Spinnaker
 
+# Specifications
 
 Light conditions
 - We’ll use one LED (one PulsePal port).
