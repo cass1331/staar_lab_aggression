@@ -184,11 +184,11 @@ def main():
     # initialize cameras and report compatibility
     for i, cam in enumerate(cam_list):
         cam.Init()
-        camera_model = cam.DeviceModelName.GetValue()
-        if camera_model in NEWER_CAMERAS:
-            print(f"Camera model {camera_model} detected. Proceeding with Pulse Pal trials.")
-        else:
-            print(f"Camera model {camera_model} may not be compatible. Please check settings.")
+        # camera_model = cam.DeviceModelName.GetValue()
+        # if camera_model in NEWER_CAMERAS:
+        #     print(f"Camera model {camera_model} detected. Proceeding with Pulse Pal trials.")
+        # else:
+        #     print(f"Camera model {camera_model} may not be compatible. Please check settings.")
 
     # Build one GUI window (Toplevel) per camera, each with independent controls
     # create GUI root here (so importing the module won't create windows)
