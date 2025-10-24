@@ -73,8 +73,8 @@ def run_trial(cam_index, channel_var):
     try:
         # 1. Connect to the Pulse Pal
         print(f"Connecting to Pulse Pal on {SERIAL_PORT}...")
-        # myPulsePal = PulsePalObject(SERIAL_PORT)
-        myPulsePal = MockPulsePalObject() # Use mock for testing
+        myPulsePal = PulsePalObject(SERIAL_PORT)
+        # myPulsePal = MockPulsePalObject() # Use mock for testing
         print("Connection successful.")
 
         if channel == 'BLUE':
