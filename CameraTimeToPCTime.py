@@ -163,11 +163,12 @@ def acquire_images(cam: PySpin.CameraPtr) -> bool:
         pc_timestamps = []
         for i in range(NUM_IMAGES):
             print('-' * 64)
-            image = cam.GetNextImage()
+            image = cam.GetNextImage(1000)
+            print('got image')
             if image.IsIncomplete():
                 print('Warning: image {} incomplete'.format(image.GetFrameID()))
                 continue
-
+            
             chunk_data = image.GetChunkData()
             timestamp = chunk_data.GetTimestamp()
             print('Chunk timestamp:', timestamp)

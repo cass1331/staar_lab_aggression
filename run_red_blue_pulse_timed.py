@@ -208,12 +208,13 @@ def main():
 
         cam_list[i].Init()
         setup_chunk_data(cam_list[i])
-        thread = ReturnValueThread(target=acquire_images,args=([cam_list[i]]))
+        thread = ReturnValueThread(target=acquire_images,args=([cam_list[i]]),daemon=True)
         threads.append(thread)
         thread.start()
         print(f"Started acquisition thread for Camera {i}.")
-        camera_timelog.append(thread.join())
-
+        
+        print('Made it past, executing normally!')
+        
         channel_var_local = tk.StringVar(value="BLUE")
         tk.Label(win, text=f"Camera {i} - Select Channel:").pack()
         tk.Radiobutton(win, text="BLUE", variable=channel_var_local, value="BLUE").pack(anchor='w')
@@ -228,7 +229,8 @@ def main():
         if stop:
             break
 
-        
+    for thread in threads:
+        camera_timelog.append(thread.join())
 
     # start the GUI loop once (windows are displayed for each camera)
     root.mainloop()
