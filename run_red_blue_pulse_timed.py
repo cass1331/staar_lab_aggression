@@ -208,7 +208,7 @@ def main():
 
         cam_list[i].Init()
         setup_chunk_data(cam_list[i])
-        thread = ReturnValueThread(target=acquire_images,args=(cam_list[i]))
+        thread = ReturnValueThread(target=acquire_images,args=([cam_list[i]]))
         threads.append(thread)
         thread.start()
         print(f"Started acquisition thread for Camera {i}.")
