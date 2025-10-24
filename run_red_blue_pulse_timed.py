@@ -9,6 +9,11 @@ import datetime
 import tkinter as tk
 import PySpin
 import threading
+import unittest.mock as mock
+
+
+# Usage in your test code
+
 
 NS_PER_S = 1000000000  # Double check this but I'm p sure we have Blackfly S
 NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL'] 
@@ -27,6 +32,20 @@ PULSE_VOLTAGE_RED = 5.0
 ON_DURATION_SECONDS_RED = 2
 OFF_DURATION_SECONDS_RED = 0.5
 # --------------------------------------
+
+##########for testing without PulsePal ###########
+# class MockPulsePalObject:
+#     def __init__(self, *args, **kwargs):
+#         # Initialize the mock object with any necessary arguments
+#         pass
+
+#     def programOutputChannelParam(self, *args, **kwargs):
+#         # Simulate the behavior of the programOutputChannelParam method
+#         pass
+#     def triggerOutputChannels(self, *args, **kwargs):
+#         pass
+
+##################################################
 
 print("--- Red/Blue 5HT MEA Experiment ---")
 
@@ -54,7 +73,8 @@ def run_trial(cam_index, channel_var):
     try:
         # 1. Connect to the Pulse Pal
         print(f"Connecting to Pulse Pal on {SERIAL_PORT}...")
-        myPulsePal = PulsePalObject(SERIAL_PORT)
+        # myPulsePal = PulsePalObject(SERIAL_PORT)
+        myPulsePal = MockPulsePalObject() # Use mock for testing
         print("Connection successful.")
 
         if channel == 'BLUE':
@@ -97,18 +117,20 @@ def run_trial(cam_index, channel_var):
             print(" -> No stimulation will be delivered this trial.")
         
         if choice:
-            start_stim = time.time()
+            start_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+            print('Stim ON: ' + str(start_stim))
         else:
             start_stim = float('nan')
 
         # 4. Wait for the ENTIRE experiment to finish
         print(f"\nProtocols initiated. The entire experiment will last for {TOTAL_DURATION_SECONDS} seconds.")
         print("You can close this script now; the Pulse Pal will complete the protocols on its own.")
-        print("Waiting here for demonstration purposes...")
+        # print("Waiting here for demonstration purposes...")
         time.sleep(TOTAL_DURATION_SECONDS)
 
         if choice:
-            end_stim = time.time()
+            end_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+            print('Stim OFF: ' + str(end_stim))
         else:
             end_stim = float('nan')
 
@@ -141,6 +163,20 @@ def main():
         system.ReleaseInstance()
         return
 
+    ############ for testing without cameras #############
+    # num_cams = 2  
+    # mock_camera1 = mock.Mock()
+    # mock_camera1.Init = mock.MagicMock(return_value=None)
+    # mock_camera1.BeginAcquisition = mock.MagicMock(return_value=None)
+
+    # mock_camera2 = mock.Mock()
+    # mock_camera2.Init = mock.MagicMock(return_value=None)
+    # mock_camera2.BeginAcquisition = mock.MagicMock(return_value=None)
+
+    # cam_list = [mock_camera1, mock_camera2]
+
+    #######################################################
+
     # initialize per-camera logs
     global time_log
     time_log = [[] for _ in range(num_cams)]
@@ -161,39 +197,47 @@ def main():
     root.geometry("300x150")
 
     tk.Label(root, text="Per-camera Red/Blue Pulse Trigger").pack()
-
+    camera_timelog = []
     stopwatch = time.time()
+    threads = []
+
     for i in range(num_cams):
         cam_name = cam_list[i].DeviceModelName.GetValue()
         win = tk.Toplevel(root)
         win.title(f"Camera {i} - {cam_name}")
 
+        cam_list[i].Init()
+        setup_chunk_data(cam_list[i])
+        thread = ReturnValueThread(target=acquire_images,args=(cam_list[i]))
+        threads.append(thread)
+        thread.start()
+        print(f"Started acquisition thread for Camera {i}.")
+        camera_timelog.append(thread.join())
+
         channel_var_local = tk.StringVar(value="BLUE")
         tk.Label(win, text=f"Camera {i} - Select Channel:").pack()
         tk.Radiobutton(win, text="BLUE", variable=channel_var_local, value="BLUE").pack(anchor='w')
         tk.Radiobutton(win, text="RED", variable=channel_var_local, value="RED").pack(anchor='w')
-        tk.Button(root, text="End Session Now", command=stop_button).pack()
+        tk.Button(root, text=f"End Camera {i} Session Now (Close GUI) and Save", command=stop_button).pack()
 
         # Button uses a lambda to capture camera index and its channel_var
         button = tk.Button(win, text="Run Trial", command=lambda idx=i, var=channel_var_local: run_trial(idx, var))
         # button = tk.Button(win, text="Run Trial", command=lambda idx=i, var=channel_var_local: Thread(target=run_trial, args=(idx,var), daemon=True).start())
         button.pack(pady=10)
 
+        if stop:
+            break
+
         
 
     # start the GUI loop once (windows are displayed for each camera)
     root.mainloop()
 
-    camera_timelog = []
+    
     #run cameras in parallel
-    threads = []
-    for i, cam in enumerate(cam_list):
-        cam.Init()
-        setup_chunk_data(cam)
-        thread = ReturnValueThread(target=acquire_images,args=(cam))
-        threads.append(thread)
-        thread.start()
-        camera_timelog.append(thread.join())
+    
+    # for i, cam in enumerate(cam_list):
+        
 
         # if time.time() - stopwatch > TOTAL_ACQUISITION_SECONDS:
         #     print(f"Total acquisition time of {TOTAL_ACQUISITION_SECONDS} seconds reached. Stopping further GUI windows.")
@@ -207,16 +251,30 @@ def main():
 
     
 
-    # After GUI closes, save per-camera logs
+    # After GUI closes, save pulse logs
     time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
     for i in range(num_cams):
-        file_path = f'red_blue_time_log_cam{i}_' + time_rn + '.txt'
+        file_path = f'red_blue_time_log_pulse{i}_' + time_rn + '.txt'
         with open(file_path, 'w') as file:
             for entry in time_log[i]:
                 # entry is (start, end)
                 line_content = ' '.join(map(str, entry))
                 file.write(line_content + '\n')
-        print(f"Time log saved to {file_path}")
+        print(f"Pulse time log saved to {file_path}")
+
+    #After GUI closes, save camera time logs
+    time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+    for i in range(num_cams):
+        file_path = f'red_blue_time_log_cam{i}_' + time_rn + '.txt'
+        with open(file_path, 'w') as file:
+            for entry in camera_timelog[i]:
+                # entry is (start, end)
+                line_content = ' '.join(map(str, entry))
+                file.write(line_content + '\n')
+        print(f"Camera time log saved to {file_path}")
+
+
+    
 
     # Clean up cameras properly
     for cam in cam_list:

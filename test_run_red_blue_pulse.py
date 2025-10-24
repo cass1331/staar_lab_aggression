@@ -65,7 +65,7 @@ sys.modules['PySpin'] = pyspin
 
 # Now import the module under test after faking dependencies
 # Load the target module by file path so the test works regardless of CWD
-module_path = os.path.join(os.path.dirname(__file__), '..', 'run_red_blue_pulse_timed.py')
+module_path = os.path.join(os.path.dirname(__file__), 'run_red_blue_pulse_timed.py')
 module_path = os.path.abspath(module_path)
 spec = importlib.util.spec_from_file_location('run_red_blue_pulse_timed', module_path)
 mod = importlib.util.module_from_spec(spec)

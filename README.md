@@ -60,13 +60,20 @@ Potential challenge
 - Control number of total frames/time from GUI
 - Run with PulsePal connected to check that it actually works
 
-## Small notes
-- Install PySpin first. This is tricky because there's a PyPi called *pyspin* which is not the right package. PySpin actually comes preinstalled with Spinnaker IIRC and you have to install the correct one for your computer with pip from wheels.
-- 
+## Things that are definitely working
+- Controlling pulses with GUI and running and recording pulses working perfectly with a dummy object
+- Controlling the camera also works with a dummy object. However I need to check if it will actually log camera timestamps
+
+## Issues
+- I need to thread the pulse pal triggers/boxes separately so they can run in parallel instead of freezing the other one for 10 seconds
+- I need to configure the stop button to actually stop the trials on demand. (X-ing out of the GUI also breaks the for loop and causes the txt files to save, but buttons would be nice to control each camera/box independently.)
+
+## Small notes, dependencies
+- Install PySpin first. This is tricky because there's a PyPi package online called *pyspin* which is not the right package. PySpin actually comes preinstalled with Spinnaker SDK IIRC and you have to install the correct one for your computer with pip from wheels.
+- Also requires pyserial (installed w Conda or pip)
 
 ## Big Note!
 
-Apparently, only one 'application' can control the camera at once. To have the script retrieve the camera 
-timestamps, configure the camera settings in SpinView, close SpinView, and then run the script (run_red_blue_pulse_timed.py), which will take care of everything, including image acquistion.
+Apparently, only one 'application' can control the camera at once. To have the script retrieve the camera timestamps, configure the camera settings in SpinView, close SpinView, and then run the script (run_red_blue_pulse_timed.py), which will take care of everything, including image acquistion, with some very barebones GUIs.
 
 
