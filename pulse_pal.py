@@ -44,7 +44,7 @@ class PulsePalObject(object):
             PulsePalError: If there is a problem initializing the connection.
         """
         self.Port = ArCom(port_name, 12000000)  # ArCom (Arduino Communication) wraps PySerial
-        #                                         to simplify data transactions with Arduino
+        #magic number?                                         to simplify data transactions with Arduino
         self._model = 0
         self._dac_bitMax = self._toDecimal(0)
         

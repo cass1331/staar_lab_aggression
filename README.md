@@ -7,11 +7,23 @@
 
 Read/write for Arduino
 
-## pulse_pal.py
+## `pulse_pal.py`
 
 Define interactions for PulsePal
 
-## run_red_blue_pulse.py
+## `run_red_blue_pulse.py`
+
+Define interactions for PulsePal and get trigger timestamps logged
+
+## `run_red_blue_pulse_timed.py``
+
+Define interactions for PulsePal and get trigger timestamps logged, also controls camera/image acquistion
+and logs camera timestamp for each frame
+
+## `CameraTimeToPCTime`
+
+Example/included code from Spinnaker
+
 
 Light conditions
 - We’ll use one LED (one PulsePal port).
@@ -40,6 +52,20 @@ Potential challenge
 - Randomly turning on/off LED
 - Playing multiple trials automatically
 - User-controlled number of trials (button GUI)
+- Synced timestamps (I think this should work correctly now)
 
 ## Things to do
-- Synced timestamps
+- Configure stop button in case we need to end a trial early
+- Control number of total frames/time from GUI
+- Run with PulsePal connected to check that it actually works
+
+## Small notes
+- Install PySpin first. This is tricky because there's a PyPi called *pyspin* which is not the right package. PySpin actually comes preinstalled with Spinnaker IIRC and you have to install the correct one for your computer with pip from wheels.
+- 
+
+## Big Note!
+
+Apparently, only one 'application' can control the camera at once. To have the script retrieve the camera 
+timestamps, configure the camera settings in SpinView, close SpinView, and then run the script (run_red_blue_pulse_timed.py), which will take care of everything, including image acquistion.
+
+
