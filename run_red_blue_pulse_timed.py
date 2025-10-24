@@ -10,11 +10,10 @@ import tkinter as tk
 import PySpin
 import threading
 
-NS_PER_S = 1000000000 
+NS_PER_S = 1000000000  # Double check this but I'm p sure we have Blackfly S
 NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL'] 
 # --- Parameters You Can Change ---
 SERIAL_PORT = 'COM4'                # Your Pulse Pal's port name
-    # Double check this but I'm p sure we have Blackfly S
 TOTAL_DURATION_SECONDS = 10
 
 # --- Channel 1 Parameters (20Hz Pulse Train, BLUE) ---
@@ -180,24 +179,33 @@ def main():
         # button = tk.Button(win, text="Run Trial", command=lambda idx=i, var=channel_var_local: Thread(target=run_trial, args=(idx,var), daemon=True).start())
         button.pack(pady=10)
 
-        camera_timelog = []
-
-        #run cameras in parallel
-        threads = []
-        for i, cam in enumerate(cam_list):
-            cam.Init()
-            setup_chunk_data(cam)
-            thread = ReturnValueThread(target=acquire_images,args=(cam))
-            threads.append(thread)
-            thread.start()
-            camera_timelog.append(thread.join())
-
         
-            
-            
 
     # start the GUI loop once (windows are displayed for each camera)
     root.mainloop()
+
+    camera_timelog = []
+    #run cameras in parallel
+    threads = []
+    for i, cam in enumerate(cam_list):
+        cam.Init()
+        setup_chunk_data(cam)
+        thread = ReturnValueThread(target=acquire_images,args=(cam))
+        threads.append(thread)
+        thread.start()
+        camera_timelog.append(thread.join())
+
+        # if time.time() - stopwatch > TOTAL_ACQUISITION_SECONDS:
+        #     print(f"Total acquisition time of {TOTAL_ACQUISITION_SECONDS} seconds reached. Stopping further GUI windows.")
+        #     cam_list[i].EndAcquisition()
+        # elif stop:
+        #     print("Stop button pressed. Ending acquisition.")
+        #     stop = False
+        # else:
+        #     pass
+            
+
+    
 
     # After GUI closes, save per-camera logs
     time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")

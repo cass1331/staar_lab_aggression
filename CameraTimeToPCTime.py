@@ -184,7 +184,7 @@ def acquire_images(cam: PySpin.CameraPtr) -> bool:
         print('ERROR:', ex)
         return False
 
-    return print(pc_timestamps)
+    return pc_timestamps
 
 
 def setup_chunk_data(cam: PySpin.CameraPtr) -> bool:
