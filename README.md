@@ -3,7 +3,7 @@
 
 ## We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
 
-## ArCOM.py
+## `ArCOM.py`
 
 Read/write for Arduino
 
@@ -67,9 +67,11 @@ Potential challenge
 ## Issues
 - I need to thread the pulse pal triggers/boxes separately so they can run in parallel instead of freezing the other one for 10 seconds
 - I need to configure the stop button to actually stop the trials on demand. (X-ing out of the GUI also breaks the for loop and causes the txt files to save, but buttons would be nice to control each camera/box independently.)
+- For some reason, the camera is not collecting images. This happens even with the example code, so I'm not 100% sure 
 
 ## Small notes, dependencies
 - Install PySpin first. This is tricky because there's a PyPi package online called *pyspin* which is not the right package. PySpin actually comes preinstalled with Spinnaker SDK IIRC and you have to install the correct one for your computer with pip from wheels.
+- However, since I can't find it on the lab computer/old version of Spinnaker, it turns out you can install it with `pip install spinnaker-python`.
 - Also requires pyserial (installed w Conda or pip)
 
 ## Big Note!
