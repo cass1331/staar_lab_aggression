@@ -92,16 +92,14 @@ def run_trial():
 
         # 3. Trigger either channel
         print("\nTriggering channel now.")
-        if choice:
-            if channel == 'BLUE':
-                print(f" -> Channel {BLUE} will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
-                # myPulsePal.triggerOutputChannels(channel1=1, channel2=0,channel3=0, channel4=0)
-                myPulsePal.triggerOutputChannels(0,1, 0, 0)
-            else:
-                print(f" -> Channel {RED} will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
-                myPulsePal.triggerOutputChannels(channel1=0,channel2=1,channel3=0, channel4=0)
+        if channel == 'BLUE':
+            print(f" -> Channel {BLUE} will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
+            # myPulsePal.triggerOutputChannels(channel1=1, channel2=0,channel3=0, channel4=0)
+            myPulsePal.triggerOutputChannels(0,1, 0, 0)
         else:
-            print(" -> No stimulation will be delivered this trial.")
+            print(f" -> Channel {RED} will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
+            myPulsePal.triggerOutputChannels(channel1=0,channel2=1,channel3=0, channel4=0)
+
         start_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
         actually_on = None
         if choice:
