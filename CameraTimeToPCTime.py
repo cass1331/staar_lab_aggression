@@ -117,11 +117,11 @@ def calculate_offset_newer(cam: PySpin.CameraPtr) -> int:
         # Get camera time
         cam.TimestampLatch.Execute()
         camera_time = cam.TimestampLatchValue.GetValue()
-        print('Current camera time:', camera_time)
+        # print('Current camera time:', camera_time)
 
         # Get system time
         system_time = time.time()  # TODO: test windows
-        print('Current system time:', system_time)
+        # print('Current system time:', system_time)
 
         # Calculate offset in seconds
         offset = system_time - camera_time / NS_PER_S
@@ -162,24 +162,22 @@ def acquire_images(cam: PySpin.CameraPtr) -> bool:
         cam.BeginAcquisition()
         pc_timestamps = []
         for i in range(NUM_IMAGES):
-            print('-' * 64)
             image = cam.GetNextImage(1000)
-            print('got image')
             if image.IsIncomplete():
                 print('Warning: image {} incomplete'.format(image.GetFrameID()))
                 continue
             
             chunk_data = image.GetChunkData()
             timestamp = chunk_data.GetTimestamp()
-            print('Chunk timestamp:', timestamp)
+            # print('Chunk timestamp:', timestamp)
 
             # Convert timestamp
             converted_timestamp = timestamp / NS_PER_S + calculate_offset(cam)
 
-            print('PC timestamp in seconds:', converted_timestamp)
+            # print('PC timestamp in seconds:', converted_timestamp)
             timestamp_full = '{:4}/{:02}/{:02} {:02}:{:02}:{:02}'.format(*time.localtime(converted_timestamp))
             pc_timestamps.append(timestamp_full)
-            print('PC timestamp:', timestamp_full)
+            # print('PC timestamp:', timestamp_full)
 
     except PySpin.SpinnakerException as ex:
         print('ERROR:', ex)
