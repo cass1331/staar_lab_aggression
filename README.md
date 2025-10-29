@@ -54,11 +54,12 @@ Potential challenge
 - Playing multiple trials automatically
 - User-controlled number of trials (button GUI)
 - Synced timestamps (I think this should work correctly now)
+- Works with PulsePal (but I seem to have the channels mixed up)
+- User input trial success (on terminal/command line since it's not really worth to to thread GUIs). Not pretty but functional.
 
 ## Things to do
-- Configure stop button in case we need to end a trial early
+- Configure stop button in case we need to end a trial early (for now just X out of the GUI)
 - Control number of total frames/time from GUI
-- Run with PulsePal connected to check that it actually works
 
 ## Things that are definitely working
 - Controlling pulses with GUI and running and recording pulses working perfectly with a dummy object

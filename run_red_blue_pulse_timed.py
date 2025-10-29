@@ -53,7 +53,7 @@ print("--- Red/Blue 5HT MEA Experiment ---")
 
 #blue
 period = 1.0 / PULSE_FREQUENCY_HZ_BLUE
-pulse_duration_blue = period * 0.5
+pulse_duration_blue = TOTAL_DURATION_SECONDS
 
 # time_log will be initialized per-camera in main()
 time_log = []

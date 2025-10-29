@@ -5,6 +5,9 @@ import time
 import random
 import datetime
 import tkinter as tk
+import re
+import threading
+import pandas as pd
 
 # --- Parameters You Can Change ---
 SERIAL_PORT = 'COM4'                # Your Pulse Pal's port name
@@ -19,17 +22,21 @@ PULSE_FREQUENCY_HZ_BLUE = 20
 # --- Channel 2 Parameters (2 s ON / 0.5 s OFF, RED) ---
 RED = 2
 PULSE_VOLTAGE_RED = 5.0
-ON_DURATION_SECONDS_RED = 2
-OFF_DURATION_SECONDS_RED = 0.5
+# ON_DURATION_SECONDS_RED = 2
+ON_DURATION_SECONDS_RED = 0.025
+# OFF_DURATION_SECONDS_RED = 0.5
+OFF_DURATION_SECONDS_RED = 0.025
 # --------------------------------------
 
 print("--- Red/Blue 5HT MEA Experiment ---")
+name_file = input('Input the name of the video (formatted something like 20251025_PJA121_intruder5_day4_nophotostim) and hit enter to start: ')
 
 #calculate channel settings:
 
-#blue
-period = 1.0 / PULSE_FREQUENCY_HZ_BLUE
-pulse_duration_blue = period * 0.5
+# #blue
+# period = 1.0 / PULSE_FREQUENCY_HZ_BLUE
+# pulse_duration_blue = period * 0.5
+pulse_duration_blue = 0.025
 
 time_log = [] #log times of stimulations
 
@@ -38,6 +45,13 @@ root = tk.Tk()
 channel_var = tk.StringVar(value="BLUE")
 root.title("Red/Blue Pulse Trigger")
 root.geometry("300x150") 
+
+
+list_attacks = []
+start_times = []
+end_times = []
+on_status= []
+
 
 def run_trial(): 
     channel = channel_var.get()
@@ -81,17 +95,19 @@ def run_trial():
         if choice:
             if channel == 'BLUE':
                 print(f" -> Channel {BLUE} will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
-                myPulsePal.triggerOutputChannels(channel1=1, channel2=0, channel3=0, channel4=0)
+                # myPulsePal.triggerOutputChannels(channel1=1, channel2=0,channel3=0, channel4=0)
+                myPulsePal.triggerOutputChannels(0,1, 0, 0)
             else:
                 print(f" -> Channel {RED} will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
-                myPulsePal.triggerOutputChannels(channel1=0, channel2=1, channel3=0, channel4=0)
+                myPulsePal.triggerOutputChannels(channel1=0,channel2=1,channel3=0, channel4=0)
         else:
             print(" -> No stimulation will be delivered this trial.")
-        
+        start_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        actually_on = None
         if choice:
-            start_stim = time.time()
+            actually_on = True
         else:
-            start_stim = float('nan')
+            actually_on = False
 
         # 4. Wait for the ENTIRE experiment to finish
         print(f"\nProtocols initiated. The entire experiment will last for {TOTAL_DURATION_SECONDS} seconds.")
@@ -99,12 +115,17 @@ def run_trial():
         print("Waiting here for demonstration purposes...")
         time.sleep(TOTAL_DURATION_SECONDS)
 
+        end_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        effective = input('Did the attack stop? y/n and hit enter: ')
+        actually_on = None
         if choice:
-            end_stim = time.time()
+            actually_on = True
         else:
-            end_stim = float('nan')
-
-        time_log.append((start_stim, end_stim))
+            actually_on = False
+        start_times.append(start_stim)
+        end_times.append(end_stim)
+        on_status.append(actually_on)
+        list_attacks.append(effective)
 
         print("\nExperiment finished.")
 
@@ -123,11 +144,19 @@ button.pack(pady=20)
 root.mainloop()  
 
 time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-file_path = 'red_blue_time_log_' + time_rn + '.txt'
-with open(file_path, 'w') as file:
-    for lines in time_log:
-        line_content = ' '.join(map(str, lines))
-        file.write(line_content + '\n')
+file_path = name_file +re.sub(r'[^a-zA-Z0-9_.-]', '_', time_rn)+'.txt'
 
+stim_dict = {'start_times': start_times, 'end_times': end_times, 'on_status': on_status, 'stim_stopped_attack': list_attacks}
+stim_df = pd.DataFrame.from_dict(stim_dict)
+
+stim_df.to_csv(file_path)
+
+# with open(file_path, 'w') as file:
+#     for lines in time_log:
+#         line_content = ' '.join(map(str, lines))
+#         file.write(line_content + '\n')
+# with open('attack_log'+re.sub(r'[^a-zA-Z0-9_.-]', '_', time_rn)+'.txt','w') as file:
+#     for lines in list_attacks:
+#         file.write()
 print(f"Time log saved to {file_path}")
 
