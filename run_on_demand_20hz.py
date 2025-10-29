@@ -42,8 +42,7 @@ on_status= []
 
 def run_trial(): 
     print(f"You triggered the stimulation. A 20 Hz 465 nm pulse train will run for 10 seconds.")
-    # choice = random.random() > 0.5 #choose whether or not the stim will be triggeBLUE
-    choice = True #always on for testing code
+    choice = random.random() > 0.5 #choose whether or not the stim will be triggeBLUE
     try:
         # 1. Connect to the Pulse Pal
         print(f"Connecting to Pulse Pal on {SERIAL_PORT}...")
