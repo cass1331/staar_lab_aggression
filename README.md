@@ -3,6 +3,8 @@
 
 ## We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
 
+### Files to note:
+
 ## `ArCOM.py`
 
 Read/write for Arduino
@@ -11,14 +13,14 @@ Read/write for Arduino
 
 Define interactions for PulsePal
 
-## `run_red_blue_pulse.py`
+## `run_on_demand_20hz.py`
 
-Define interactions for PulsePal and get trigger timestamps logged
+Define interactions for PulsePal and get trigger timestamps logged (PC only)
 
-## `run_red_blue_pulse_timed.py`
+## `run_on_demand_20hz_timed.py`
 
 Define interactions for PulsePal and get trigger timestamps logged, also controls camera/image acquistion
-and logs camera timestamp for each frame
+and logs camera timestamp for each frame. Currently WIP.
 
 ## `CameraTimeToPCTime`
 
@@ -28,8 +30,8 @@ Example/included code from Spinnaker
 
 Light conditions
 - We’ll use one LED (one PulsePal port).
-- Blue light: 20 Hz stimulation (to release 5HT in the MEA).
-- Red light: Pulses of 2 s ON / 0.5 s OFF (to briefly inhibit 5HT in the MEA).
+- Blue light: 20 Hz stimulation (to release 5HT in the MEA). (ChR2)
+- Red light: Pulses of 2 s ON / 0.5 s OFF (to briefly inhibit 5HT in the MEA). (NphR)
 - These parameters should be easy to adjust later if needed.
 
 Pulse set structure
@@ -56,14 +58,14 @@ Potential challenge
 - Synced timestamps (I think this should work correctly now)
 - Works with PulsePal (but I seem to have the channels mixed up)
 - User input trial success (on terminal/command line since it's not really worth to to thread GUIs). Not pretty but functional.
+- Actual camera trigger works (only with Spinnaker 4.2/PySpin from wheels)
+
 
 ## Things to do
 - Configure stop button in case we need to end a trial early (for now just X out of the GUI)
 - Control number of total frames/time from GUI
-
-## Things that are definitely working
-- Controlling pulses with GUI and running and recording pulses working perfectly with a dummy object
-- Controlling the camera also works with a dummy object. However I need to check if it will actually log camera timestamps
+- Log camera image captures to video (I think it's AVI format)?
+- Figure out how to control frame rate
 
 ## Issues
 - I need to thread the pulse pal triggers/boxes separately so they can run in parallel instead of freezing the other one for 10 seconds
@@ -73,7 +75,7 @@ Potential challenge
 ## Small notes, dependencies
 - Install PySpin first. This is tricky because there's a PyPi package online called *pyspin* which is not the right package. PySpin actually comes preinstalled with Spinnaker SDK IIRC and you have to install the correct one for your computer with pip from wheels.
 - However, since I can't find it on the lab computer/old version of Spinnaker, it turns out you can install it with `pip install spinnaker-python`.
-- Also requires pyserial (installed w Conda or pip)
+- Also requires pyserial (installed w Conda or pip), opencv, etc
 
 ## Big Note!
 
