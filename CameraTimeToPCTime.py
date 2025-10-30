@@ -201,7 +201,7 @@ def acquire_images(cam, writer, height, width):
                 print('Warning: image {} incomplete'.format(image.GetFrameID()))
                 continue
             else:
-                print('Recording images...')
+                # print('Recording images...')
                 image_data = image.GetData().reshape(height, width, 1) #monochrome
                 writer.write(image_data)
                 # queue_.put(image_data)
@@ -217,7 +217,7 @@ def acquire_images(cam, writer, height, width):
             # print('PC timestamp in seconds:', converted_timestamp)
             timestamp_full = '{:4}/{:02}/{:02} {:02}:{:02}:{:02}'.format(*time.localtime(converted_timestamp))
             pc_timestamps.append(timestamp_full)
-            print('PC timestamp:', timestamp_full)
+            # print('PC timestamp:', timestamp_full)
         # print(pc_timestamps)
         return pc_timestamps
 
