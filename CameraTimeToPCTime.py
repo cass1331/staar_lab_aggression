@@ -34,6 +34,9 @@
 
 import time
 import PySpin
+import threading
+import queue
+import cv2
 
 NUM_IMAGES = 10000
 NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL']
@@ -132,7 +135,8 @@ def calculate_offset_newer(cam: PySpin.CameraPtr) -> int:
         return None
 
 
-def acquire_images(cam: PySpin.CameraPtr, output_file, height, width) -> bool:
+def acquire_images(cam, writer, height, width):
+# def acquire_images(cam):
     """
     The main function that acquires images.
     Determines the type of camera and uses the appropriate
@@ -145,6 +149,33 @@ def acquire_images(cam: PySpin.CameraPtr, output_file, height, width) -> bool:
         nodemap_tldevice = cam.GetTLDeviceNodeMap()
         device_type = PySpin.CEnumerationPtr(nodemap_tldevice.GetNode('DeviceType')).GetIntValue()
         device_name = cam.DeviceModelName()
+
+        nodemap = cam.GetNodeMap()
+
+        # Disable automatic frame rate
+        node_frame_rate_auto = PySpin.CEnumerationPtr(nodemap.GetNode("AcquisitionFrameRateAuto"))
+        if PySpin.IsAvailable(node_frame_rate_auto) and PySpin.IsWritable(node_frame_rate_auto):
+            node_frame_rate_auto_off = node_frame_rate_auto.GetEntryByName("Off")
+            if PySpin.IsAvailable(node_frame_rate_auto_off) and PySpin.IsReadable(node_frame_rate_auto_off):
+                node_frame_rate_auto.SetIntValue(node_frame_rate_auto_off.GetValue())
+
+        # Enable frame rate control (if applicable)
+        node_frame_rate_enable = PySpin.CBooleanPtr(nodemap.GetNode("AcquisitionFrameRateEnabled"))
+        if PySpin.IsAvailable(node_frame_rate_enable) and PySpin.IsWritable(node_frame_rate_enable):
+            node_frame_rate_enable.SetValue(True)
+
+        # Set the desired frame rate
+        node_frame_rate = PySpin.CFloatPtr(nodemap.GetNode("AcquisitionFrameRate"))
+        if PySpin.IsAvailable(node_frame_rate) and PySpin.IsWritable(node_frame_rate):
+            node_frame_rate.SetValue(20.0) # Set to 20 FPS
+
+        # node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
+        # node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
+
+        # if PySpin.IsWritable(node_width):
+        #     node_width.SetValue(width)
+        # if PySpin.IsWritable(node_height):
+        #     node_height.SetValue(height)
 
         # Determine which timestamp function to use
         print('Device name:', device_name)
@@ -159,17 +190,22 @@ def acquire_images(cam: PySpin.CameraPtr, output_file, height, width) -> bool:
             print('This is an older U3V camera')
 
         # Start acquisition
-        cam.AcquisitionFrameRate.SetValue(20) #magic number, fix later
+        # cam.AcquisitionFrameRate.SetValue(20) #magic number, fix later
         cam.BeginAcquisition()
+        # print('started acquisition')
         pc_timestamps = []
         for i in range(NUM_IMAGES):
             image = cam.GetNextImage(1000)
+            # print('got image!')
             if image.IsIncomplete():
                 print('Warning: image {} incomplete'.format(image.GetFrameID()))
                 continue
             else:
+                print('Recording images...')
                 image_data = image.GetData().reshape(height, width, 1) #monochrome
-                output_file.write(image_data)
+                writer.write(image_data)
+                # queue_.put(image_data)
+
 
             chunk_data = image.GetChunkData()
             timestamp = chunk_data.GetTimestamp()
@@ -181,13 +217,15 @@ def acquire_images(cam: PySpin.CameraPtr, output_file, height, width) -> bool:
             # print('PC timestamp in seconds:', converted_timestamp)
             timestamp_full = '{:4}/{:02}/{:02} {:02}:{:02}:{:02}'.format(*time.localtime(converted_timestamp))
             pc_timestamps.append(timestamp_full)
-            # print('PC timestamp:', timestamp_full)
+            print('PC timestamp:', timestamp_full)
+        # print(pc_timestamps)
+        return pc_timestamps
 
     except PySpin.SpinnakerException as ex:
         print('ERROR:', ex)
         return False
 
-    return pc_timestamps
+    
 
 
 def setup_chunk_data(cam: PySpin.CameraPtr) -> bool:

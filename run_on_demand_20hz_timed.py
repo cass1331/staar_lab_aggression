@@ -13,6 +13,8 @@ import unittest.mock as mock
 import cv2
 import os
 import pandas as pd
+import re
+import queue
 
 
 # Usage in your test code
@@ -51,12 +53,11 @@ OFF_DURATION_SECONDS_BLUE = 1/(PULSE_FREQUENCY_HZ_BLUE*2)  # OFF duration for 20
 ##################################################
 
 print("--- 20 Hz 465 nm 5HT MEA Experiment ---")
-folder_name = input('Input the full folder path where you want to save the time log and hit enter: ')
+folder_name = input('Input the full folder path where you want to save the video and hit enter: ')
 name_file = input('Input the name of the video (formatted something like 20251025_PJA121_intruder5_day4_nophotostim) and hit enter to start: ')
 format_file = input('Input the video format (avi, mp4, etc) and hit enter: ')
 log_folder_name = 'logs'
 
-print('Okay, proceeding. Saving video to ' + os.path.join(folder_name, name_file + '.'+format_file) + ' and time log to ' + os.path.join(log_folder_name, name_file + '_time_log.csv'))
 
 print('To stop and save the session at any time, close the GUI window.')
 
@@ -66,22 +67,19 @@ if not os.path.exists(log_folder_name):
     os.makedirs(log_folder_name)
 
 time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-
+time_rn = re.sub(r'[^a-zA-Z0-9_.-]', '_', time_rn)
 video_file_path = os.path.join(folder_name, name_file + time_rn + '.'+format_file)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-frame_size = (640, 480)  # Adjust frame size as needed
-video_writer = cv2.VideoWriter(video_file_path, fourcc, 20.0, frame_size)  # Adjust frame size as needed    
+frame_size = (720, 540)  # Adjust frame size as needed
+video_writer = cv2.VideoWriter(video_file_path, fourcc, 20.0, frame_size, isColor =False)       
 
 log_file_path = os.path.join(log_folder_name, name_file +  time_rn + '_time_log.csv')
 camera_log_file_path = os.path.join(log_folder_name, name_file +  time_rn + '_camera_log.txt') #save list of PC timestamps that correspond to frames
 
+print('Okay, proceeding. Saving video to ' + video_file_path + ' and time log to ' + log_file_path + '_time_log.csv and camera time log to' + camera_log_file_path )
+
 time_log = [] #log times of stimulations
 camera_timelog =[] #save camera-to-PC time conversions
-
-#set up GUI window to run trials on demand
-root = tk.Tk()
-root.title("20 Hz 465 nm Pulse Trigger")
-root.geometry("300x150") 
 
 #collect data
 list_attacks = []
@@ -114,7 +112,8 @@ def run_trial():
         print("\nTriggering channel now.")
    
         print(f" -> Stimulation will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
-        myPulsePal.triggerOutputChannels(channel1=0,channel2=1,channel3=0, channel4=0)
+        if choice:
+            myPulsePal.triggerOutputChannels(channel1=0,channel2=1,channel3=0, channel4=0)
 
         start_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
         actually_on = None
@@ -190,13 +189,13 @@ def main():
     # initialize cameras and report compatibility (reimplement later)
     for i, cam in enumerate(cam_list):
         cam.Init()
-        camera_model = cam.DeviceModelName.GetValue()
-        if camera_model in NEWER_CAMERAS:
-            print(f"Camera model {camera_model} detected. Proceeding with Pulse Pal trials.")
-            unique_id = cam.GetUniqueID()
-            print(f"Camera Unique ID: {unique_id}")
-        else:
-            print(f"Camera model {camera_model} may not be compatible. Please check settings.")
+        # camera_model = cam.DeviceModelName.GetValue()
+        # if camera_model in NEWER_CAMERAS:
+        #     print(f"Camera model {camera_model} detected. Proceeding with Pulse Pal trials.")
+        #     unique_id = cam.GetUniqueID()
+        #     print(f"Camera Unique ID: {unique_id}")
+        # else:
+        #     print(f"Camera model {camera_model} may not be compatible. Please check settings.")
 
 
     # Build one GUI window (Toplevel) per camera, each with independent controls
@@ -209,22 +208,30 @@ def main():
     stopwatch = time.time()
     threads = []
 
+    q = queue.Queue()
+
     for i,cam in enumerate(cam_list):
         acq_decision = input('Proceed with acquisition for camera ' + str(cam.GetUniqueID()) + '? Enter (y/n) and hit enter: ')
         
         if acq_decision == 'YES' or acq_decision == 'yes' or acq_decision == 'y' or acq_decision == 'Y':
             print(f"Proceeding with acquisition for camera {cam.GetUniqueID()}.")
+            if cam.GetUniqueID() == 'USB\VID_1E10&PID_4000\0180439A_0':
+                print('This is star!')
+            elif cam.GetUniqueID() == 'USB\VID_1E10&PID_4000\01716E32_0':
+                print('This is moon!')   
         else:
             print(f"Skipping acquisition for camera {cam.GetUniqueID()}.")
             continue
 
-        cam_name = cam_list[i].DeviceModelName.GetValue()
-        win = tk.Toplevel(root)
-        win.title(f"Camera {i} - {cam_name}, ID: {cam.GetUniqueID()}")
+        # cam_name = cam_list[i].DeviceModelName.GetValue()
+        # win = tk.Toplevel(root)
+        # win.title(f"Camera {i} - {cam_name}, ID: {cam.GetUniqueID()}")
 
         cam_list[i].Init()
         setup_chunk_data(cam_list[i])
-        thread = ReturnValueThread(target=acquire_images,args=([cam_list[i]], frame_size[0], frame_size[1]),daemon=True) 
+        # thread = ReturnValueThread(target=acquire_images,args=([cam_list[i]]),daemon=True) 
+        thread = ReturnValueThread(target=acquire_images,args=(cam_list[i],video_writer
+                                                               ,frame_size[0], frame_size[1]),daemon=True) 
         threads.append(thread)
        
         print(f"Started acquisition thread.")
@@ -258,7 +265,7 @@ def main():
         #     stop = False
         # else:
         #     pass
-    video_writer.close()
+    video_writer.release()
     print('Video saved to ' + video_file_path)
     
 
