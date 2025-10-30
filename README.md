@@ -58,8 +58,12 @@ Potential challenge
 - Synced timestamps (I think this should work correctly now)
 - Works with PulsePal (but I seem to have the channels mixed up)
 - User input trial success (on terminal/command line since it's not really worth to to thread GUIs). Not pretty but functional.
-- Actual camera trigger works (only with Spinnaker 4.2/PySpin from wheels)
+- Actual camera trigger works (only with Spinnaker 4.2/PySpin installed from wheels for whatever reason)
 
+
+## Hypothetically functional
+- Writing to video via script
+- Getting camera timestamps
 
 ## Things to do
 - Configure stop button in case we need to end a trial early (for now just X out of the GUI)

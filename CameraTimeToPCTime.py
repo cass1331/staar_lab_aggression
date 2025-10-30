@@ -132,7 +132,7 @@ def calculate_offset_newer(cam: PySpin.CameraPtr) -> int:
         return None
 
 
-def acquire_images(cam: PySpin.CameraPtr) -> bool:
+def acquire_images(cam: PySpin.CameraPtr, output_file, height, width) -> bool:
     """
     The main function that acquires images.
     Determines the type of camera and uses the appropriate
@@ -159,6 +159,7 @@ def acquire_images(cam: PySpin.CameraPtr) -> bool:
             print('This is an older U3V camera')
 
         # Start acquisition
+        cam.AcquisitionFrameRate.SetValue(20) #magic number, fix later
         cam.BeginAcquisition()
         pc_timestamps = []
         for i in range(NUM_IMAGES):
@@ -166,7 +167,10 @@ def acquire_images(cam: PySpin.CameraPtr) -> bool:
             if image.IsIncomplete():
                 print('Warning: image {} incomplete'.format(image.GetFrameID()))
                 continue
-            
+            else:
+                image_data = image.GetData().reshape(height, width, 1) #monochrome
+                output_file.write(image_data)
+
             chunk_data = image.GetChunkData()
             timestamp = chunk_data.GetTimestamp()
             # print('Chunk timestamp:', timestamp)

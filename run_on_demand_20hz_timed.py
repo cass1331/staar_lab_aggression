@@ -12,6 +12,7 @@ import threading
 import unittest.mock as mock
 import cv2
 import os
+import pandas as pd
 
 
 # Usage in your test code
@@ -50,16 +51,32 @@ OFF_DURATION_SECONDS_BLUE = 1/(PULSE_FREQUENCY_HZ_BLUE*2)  # OFF duration for 20
 ##################################################
 
 print("--- 20 Hz 465 nm 5HT MEA Experiment ---")
-folder_name = input('Input the folder name where you want to save the time log and hit enter: ')
+folder_name = input('Input the full folder path where you want to save the time log and hit enter: ')
 name_file = input('Input the name of the video (formatted something like 20251025_PJA121_intruder5_day4_nophotostim) and hit enter to start: ')
+format_file = input('Input the video format (avi, mp4, etc) and hit enter: ')
+log_folder_name = 'logs'
 
-video_file_path = os.path.join(folder_name, name_file + '.avi')
+print('Okay, proceeding. Saving video to ' + os.path.join(folder_name, name_file + '.'+format_file) + ' and time log to ' + os.path.join(log_folder_name, name_file + '_time_log.csv'))
+
+print('To stop and save the session at any time, close the GUI window.')
+
+if not os.path.exists(folder_name):
+    os.makedirs(folder_name)
+if not os.path.exists(log_folder_name):
+    os.makedirs(log_folder_name)
+
+time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+
+video_file_path = os.path.join(folder_name, name_file + time_rn + '.'+format_file)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-video_writer = cv2.VideoWriter(video_file_path, fourcc, 20.0, (640, 480))  # Adjust frame size as needed    
+frame_size = (640, 480)  # Adjust frame size as needed
+video_writer = cv2.VideoWriter(video_file_path, fourcc, 20.0, frame_size)  # Adjust frame size as needed    
 
-log_file_path = os.path.join(folder_name, name_file + '_time_log.csv')
+log_file_path = os.path.join(log_folder_name, name_file +  time_rn + '_time_log.csv')
+camera_log_file_path = os.path.join(log_folder_name, name_file +  time_rn + '_camera_log.txt') #save list of PC timestamps that correspond to frames
 
 time_log = [] #log times of stimulations
+camera_timelog =[] #save camera-to-PC time conversions
 
 #set up GUI window to run trials on demand
 root = tk.Tk()
@@ -108,8 +125,8 @@ def run_trial():
 
         # 4. Wait for the ENTIRE experiment to finish
         print(f"\nProtocols initiated. The entire experiment will last for {TOTAL_DURATION_SECONDS} seconds.")
-        print("You can close this script now; the Pulse Pal will complete the protocols on its own.")
-        print("Waiting here for demonstration purposes...")
+        print("DON'T close this script, or X out of the GUI: the Pulse Pal will stop the protocols!")
+        print("Waiting for pulse train to complete...")
         time.sleep(TOTAL_DURATION_SECONDS)
 
         end_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
@@ -132,12 +149,12 @@ def run_trial():
         on_status.append(actually_on)
         list_attacks.append(effective)
 
-        print("\nExperiment finished.")
+        print("\n Pulse train finished. Ready for next trial.")
 
     except PulsePalError as e:
-        print(f"\nERROR: A Pulse Pal error occurBLUE: {e}")
+        print(f"\nERROR: A Pulse Pal error occurred: {e}")
     except Exception as e:
-        print(f"\nERROR: A general error occurBLUE: {e}")
+        print(f"\nERROR: A general error occurred: {e}")
 
 
 
@@ -170,14 +187,17 @@ def main():
 
     #######################################################
 
-    # initialize cameras and report compatibility
+    # initialize cameras and report compatibility (reimplement later)
     for i, cam in enumerate(cam_list):
         cam.Init()
-        # camera_model = cam.DeviceModelName.GetValue()
-        # if camera_model in NEWER_CAMERAS:
-        #     print(f"Camera model {camera_model} detected. Proceeding with Pulse Pal trials.")
-        # else:
-        #     print(f"Camera model {camera_model} may not be compatible. Please check settings.")
+        camera_model = cam.DeviceModelName.GetValue()
+        if camera_model in NEWER_CAMERAS:
+            print(f"Camera model {camera_model} detected. Proceeding with Pulse Pal trials.")
+            unique_id = cam.GetUniqueID()
+            print(f"Camera Unique ID: {unique_id}")
+        else:
+            print(f"Camera model {camera_model} may not be compatible. Please check settings.")
+
 
     # Build one GUI window (Toplevel) per camera, each with independent controls
     # create GUI root here (so importing the module won't create windows)
@@ -189,39 +209,43 @@ def main():
     stopwatch = time.time()
     threads = []
 
-    for i in range(num_cams):
+    for i,cam in enumerate(cam_list):
+        acq_decision = input('Proceed with acquisition for camera ' + str(cam.GetUniqueID()) + '? Enter (y/n) and hit enter: ')
+        
+        if acq_decision == 'YES' or acq_decision == 'yes' or acq_decision == 'y' or acq_decision == 'Y':
+            print(f"Proceeding with acquisition for camera {cam.GetUniqueID()}.")
+        else:
+            print(f"Skipping acquisition for camera {cam.GetUniqueID()}.")
+            continue
+
         cam_name = cam_list[i].DeviceModelName.GetValue()
         win = tk.Toplevel(root)
-        win.title(f"Camera {i} - {cam_name}")
+        win.title(f"Camera {i} - {cam_name}, ID: {cam.GetUniqueID()}")
 
         cam_list[i].Init()
         setup_chunk_data(cam_list[i])
-        thread = ReturnValueThread(target=acquire_images,args=([cam_list[i]]),daemon=True)
+        thread = ReturnValueThread(target=acquire_images,args=([cam_list[i]], frame_size[0], frame_size[1]),daemon=True) 
         threads.append(thread)
        
         print(f"Started acquisition thread.")
         
-        print('Made it past, executing normally!')
+        print('Executing normally!')
         
         tk.Label(root, text="Run Stimulation on Demand:").pack()
-        tk.Button(root, text=f"End Session Now (Close GUI) and Save", command=stop_button).pack()
 
         button = tk.Button(root, text="Run Trial", command=run_trial)
-        # button = tk.Button(win, text="Run Trial", command=lambda idx=i, var=channel_var_local: Thread(target=run_trial, args=(idx,var), daemon=True).start())
         button.pack(pady=10)
         thread.start()
 
         if stop:
             break
 
-    # for thread in threads:
-    #     camera_timelog.append(thread.join())
+    for thread in threads:
+        camera_timelog.append(thread.join())
 
     # start the GUI loop once (windows are displayed for each camera)
     root.mainloop()
 
-    
-    #run cameras in parallel
     
     # for i, cam in enumerate(cam_list):
         
@@ -234,33 +258,25 @@ def main():
         #     stop = False
         # else:
         #     pass
-            
-
+    video_writer.close()
+    print('Video saved to ' + video_file_path)
     
 
-    # After GUI closes, save pulse logs
-    time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-    for i in range(num_cams):
-        file_path = f'red_blue_time_log_pulse{i}_' + time_rn + '.txt'
-        with open(file_path, 'w') as file:
-            for entry in time_log[i]:
-                # entry is (start, end)
-                line_content = ' '.join(map(str, entry))
-                file.write(line_content + '\n')
-        print(f"Pulse time log saved to {file_path}")
+    stim_dict = {'start_times': start_times, 'end_times': end_times, 'on_status': on_status, 'stim_stopped_attack': list_attacks}
+    stim_df = pd.DataFrame.from_dict(stim_dict)
+    stim_df.to_csv(log_file_path)
+    print(f"Time log saved to {log_file_path}")
 
-    #After GUI closes, save camera time logs
-    time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+
     for i in range(num_cams):
-        file_path = f'red_blue_time_log_cam{i}_' + time_rn + '.txt'
-        with open(file_path, 'w') as file:
+        with open(camera_log_file_path, 'w') as file:
             for entry in camera_timelog[i]:
                 # entry is (start, end)
                 line_content = ' '.join(map(str, entry))
                 file.write(line_content + '\n')
-        print(f"Camera time log saved to {file_path}")
+        print(f"Camera time log saved to {camera_log_file_path}")
 
-
+    
     
 
     # Clean up cameras properly
