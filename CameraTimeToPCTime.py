@@ -34,11 +34,9 @@
 
 import time
 import PySpin
-import threading
-import queue
 import cv2
 
-NUM_IMAGES = 10000
+NUM_IMAGES = 999999999
 NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL']
 NS_PER_S = 1000000000  # The number of nanoseconds in a second
 
@@ -135,7 +133,7 @@ def calculate_offset_newer(cam: PySpin.CameraPtr) -> int:
         return None
 
 
-def acquire_images(cam, writer, height, width):
+def acquire_images(cam, writer, height, width, num_frames):
 # def acquire_images(cam):
     """
     The main function that acquires images.
@@ -169,13 +167,6 @@ def acquire_images(cam, writer, height, width):
         if PySpin.IsAvailable(node_frame_rate) and PySpin.IsWritable(node_frame_rate):
             node_frame_rate.SetValue(20.0) # Set to 20 FPS
 
-        # node_width = PySpin.CIntegerPtr(nodemap.GetNode('Width'))
-        # node_height = PySpin.CIntegerPtr(nodemap.GetNode('Height'))
-
-        # if PySpin.IsWritable(node_width):
-        #     node_width.SetValue(width)
-        # if PySpin.IsWritable(node_height):
-        #     node_height.SetValue(height)
 
         # Determine which timestamp function to use
         print('Device name:', device_name)
@@ -192,9 +183,12 @@ def acquire_images(cam, writer, height, width):
         # Start acquisition
         # cam.AcquisitionFrameRate.SetValue(20) #magic number, fix later
         cam.BeginAcquisition()
-        # print('started acquisition')
+
+        cv2.namedWindow("Behavior Box Live Feed", cv2.WINDOW_NORMAL) 
+        #implement something later to take the camera ID and tell you whether it's box star or moon
+
         pc_timestamps = []
-        for i in range(NUM_IMAGES):
+        for i in range(num_frames):
             image = cam.GetNextImage(1000)
             # print('got image!')
             if image.IsIncomplete():
@@ -203,6 +197,7 @@ def acquire_images(cam, writer, height, width):
             else:
                 # print('Recording images...')
                 image_data = image.GetData().reshape(height, width, 1) #monochrome
+                cv2.imshow("Behavior Box Live Feed", image_data)
                 writer.write(image_data)
                 # queue_.put(image_data)
 

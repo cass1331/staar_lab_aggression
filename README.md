@@ -24,7 +24,7 @@ and logs camera timestamp for each frame.
 
 ## `CameraTimeToPCTime`
 
-Example/included code from Spinnaker
+Example/included code from Spinnaker, edited for our purposes.
 
 # Specifications
 
@@ -67,10 +67,7 @@ Potential challenge
 - Control number of total frames/time from GUI
 - Show image stream while the camera is running (make sure it is in a different thread from the GUI!)
 - Make the camera more verbose so that we know it's actually acquiring images during the trial instead of having to wait until the video is saved.
-- Last time I ran this, the video was shorter than expected (I have to check if that's an actual problem or just because another file was saving)
 - There are also cosmetic improvements to make it more user-friendly, but they are low priority.
-- I think it would be good to auto-generate folders for each day, each mouse, to improve the organization
-- Store log files somewhere that is not the repo folder (to avoid messes and losing things)
 
 ## Small notes, dependencies
 - Install PySpin first. This is tricky because there's a PyPi package online called *pyspin* which is not the right package. PySpin actually comes preinstalled with Spinnaker SDK IIRC and you have to install the correct one for your computer with pip from wheels.
