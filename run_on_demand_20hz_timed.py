@@ -131,9 +131,6 @@ def run_trial():
     except Exception as e:
         print(f"\nERROR: A general error occurred: {e}")
 
-def stop_button():
-    stop = True
-
 def main():
     # get the setup for the cameras
     system = PySpin.System.GetInstance()

@@ -189,6 +189,8 @@ def acquire_images(cam, writer, height, width, num_frames):
 
         pc_timestamps = []
         for i in range(num_frames):
+            if i % 60 == 0:
+                print('Recording in progress. Acquired {} images...'.format(i))
             image = cam.GetNextImage(1000)
             # print('got image!')
             if image.IsIncomplete():

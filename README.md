@@ -61,12 +61,12 @@ Potential challenge
 - Writing to video via script
 - Getting camera timestamps
 
+## Things that should be functional but I need to test and make sure
+- Setting number of frames from user input
+- Stop and save button
+- Displaying video while camera is streaming
 
 ## Things to do
-- Configure stop/save button in case we need to end a trial early (for now just X out of the GUI)
-- Control number of total frames/time from GUI
-- Show image stream while the camera is running (make sure it is in a different thread from the GUI!)
-- Make the camera more verbose so that we know it's actually acquiring images during the trial instead of having to wait until the video is saved.
 - There are also cosmetic improvements to make it more user-friendly, but they are low priority.
 
 ## Small notes, dependencies
