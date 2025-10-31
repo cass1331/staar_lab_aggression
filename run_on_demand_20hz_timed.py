@@ -155,6 +155,12 @@ def main():
     threads = []
 
     for i,cam in enumerate(cam_list):
+        if str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\0180439A_0':
+            print('This is star!')
+        elif str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\01716E32_0':
+            print('This is moon!')
+        else:
+            print('I don\'t recognize this camera! Proceeding anyway...')
         acq_decision = input('Proceed with acquisition for camera ' + str(cam.GetUniqueID()) + '? Enter (y/n) and hit enter: ')
         if acq_decision.lower() not in ('yes', 'y'):
             print(f"Skipping acquisition for camera {cam.GetUniqueID()}.")
