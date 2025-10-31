@@ -30,14 +30,14 @@ PULSE_FREQUENCY_HZ_BLUE = 20
 ON_DURATION_SECONDS_BLUE = 1/(PULSE_FREQUENCY_HZ_BLUE*2)  # ON duration for 20Hz pulse train
 OFF_DURATION_SECONDS_BLUE = 1/(PULSE_FREQUENCY_HZ_BLUE*2)  # OFF duration for 20Hz pulse train
 
-print("--- {PULSE_FREQUENCY_HZ_BLUE} Hz 465 nm 5HT MEA Experiment ---")
+print(f"--- {PULSE_FREQUENCY_HZ_BLUE} Hz 465 nm 5HT MEA Experiment ---")
 folder_name = input('Input the full folder path where you want to save the video and hit enter: ')
 name_file = input('Input the name of the video (formatted something like 20251025_PJA121_intruder5_day4_nophotostim) and hit enter to start: ')
 format_file = input('Input the video format (avi, mp4, etc) and hit enter: ')
 log_folder_name = 'logs'
 camera_log_folder_name = 'camera_logs'
 
-camera_time = input('How long would you like to record for (in seconds)? The default is 10 minutes (600 seconds). For reference, the capture frame rate is {FRAME_RATE_HZ} Hz: ')
+camera_time = input('How long would you like to record for (in seconds)? The default is 10 minutes (600 seconds). For reference, the capture frame rate is ' + str(FRAME_RATE_HZ) + ' Hz: ')
 if camera_time == '':
     camera_time = 600
 else:
@@ -61,6 +61,11 @@ year_month_day = time_rn[:8]
 #make a subfolder for the day if it doesn't already exist
 try:
     os.mkdir(os.path.join(folder_name, year_month_day))
+except FileExistsError:
+    pass
+
+try:
+    os.mkdir(os.path.join(log_folder_name, year_month_day))
 except FileExistsError:
     pass
 
@@ -156,9 +161,9 @@ def main():
 
     for i,cam in enumerate(cam_list):
         if str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\0180439A_0':
-            print('This is star!')
-        elif str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\01716E32_0':
             print('This is moon!')
+        elif str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\01716E32_0':
+            print('This is star!')
         else:
             print('I don\'t recognize this camera! Proceeding anyway...')
         acq_decision = input('Proceed with acquisition for camera ' + str(cam.GetUniqueID()) + '? Enter (y/n) and hit enter: ')
@@ -176,9 +181,10 @@ def main():
 
         print(f"Started acquisition thread.")
         tk.Label(root, text="Run Stimulation on Demand:").pack()
-        button = tk.Button(root, text="Run Pulse Train", command=run_trial)
-        button = tk.Button(root, text="Stop and Save", command=root.destroy)
-        button.pack(pady=10)
+        run_button = tk.Button(root, text="Run Pulse Train", command=run_trial)
+        save_button = tk.Button(root, text="Stop and Save", command=root.destroy)
+        run_button.pack(pady=10)
+        save_button.pack(pady=10)
         thread.start()
 
         if stop:
@@ -186,7 +192,7 @@ def main():
 
     
     root.mainloop()
-    
+
     for thread in threads:
         camera_timelog.append(thread.join())
 

@@ -216,6 +216,7 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
             pc_timestamps.append(timestamp_full)
             # print('PC timestamp:', timestamp_full)
         # print(pc_timestamps)
+        print("Okay, finished acquiring images. You can hit Stop and Save or close the GUI to save and exit. Do NOT Control-C or you will lose everything.")
         return pc_timestamps
 
     except PySpin.SpinnakerException as ex:
