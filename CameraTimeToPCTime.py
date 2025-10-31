@@ -133,7 +133,7 @@ def calculate_offset_newer(cam: PySpin.CameraPtr) -> int:
         return None
 
 
-def acquire_images(cam, writer, height, width, num_frames):
+def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
 # def acquire_images(cam):
     """
     The main function that acquires images.
@@ -165,7 +165,7 @@ def acquire_images(cam, writer, height, width, num_frames):
         # Set the desired frame rate
         node_frame_rate = PySpin.CFloatPtr(nodemap.GetNode("AcquisitionFrameRate"))
         if PySpin.IsAvailable(node_frame_rate) and PySpin.IsWritable(node_frame_rate):
-            node_frame_rate.SetValue(20.0) # Set to 20 FPS
+            node_frame_rate.SetValue(float(frame_rate_hz)) # Set to 20 FPS
 
 
         # Determine which timestamp function to use

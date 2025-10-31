@@ -21,6 +21,7 @@ NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL']
 # --- Parameters You Can Change ---
 SERIAL_PORT = 'COM4'                # Your Pulse Pal's port name
 TOTAL_DURATION_SECONDS = 10
+FRAME_RATE_HZ = 20                  # Camera frame rate in Hz
 
 # --- Channel 1 Parameters (20Hz Pulse Train, BLUE) --- 
 BLUE = 2
@@ -29,20 +30,20 @@ PULSE_FREQUENCY_HZ_BLUE = 20
 ON_DURATION_SECONDS_BLUE = 1/(PULSE_FREQUENCY_HZ_BLUE*2)  # ON duration for 20Hz pulse train
 OFF_DURATION_SECONDS_BLUE = 1/(PULSE_FREQUENCY_HZ_BLUE*2)  # OFF duration for 20Hz pulse train
 
-print("--- 20 Hz 465 nm 5HT MEA Experiment ---")
+print("--- {PULSE_FREQUENCY_HZ_BLUE} Hz 465 nm 5HT MEA Experiment ---")
 folder_name = input('Input the full folder path where you want to save the video and hit enter: ')
 name_file = input('Input the name of the video (formatted something like 20251025_PJA121_intruder5_day4_nophotostim) and hit enter to start: ')
 format_file = input('Input the video format (avi, mp4, etc) and hit enter: ')
 log_folder_name = 'logs'
 camera_log_folder_name = 'camera_logs'
 
-camera_time = input('How long would you like to record for (in seconds)? The default is 10 minutes (600 seconds). For reference, the capture frame rate is 20 Hz: ')
+camera_time = input('How long would you like to record for (in seconds)? The default is 10 minutes (600 seconds). For reference, the capture frame rate is {FRAME_RATE_HZ} Hz: ')
 if camera_time == '':
     camera_time = 600
 else:
     camera_time = int(camera_time)
 
-num_frames = camera_time * 20  #20 fps
+num_frames = camera_time * FRAME_RATE_HZ  #20 fps
 
 
 print('To stop and save the session at any time, close the GUI window or hit the Stop and Save button.')
@@ -164,7 +165,7 @@ def main():
 
         # Pass height, width in the order that acquire_images expects
         # acquire_images(cam, writer, height, width)
-        thread = ReturnValueThread(target=acquire_images, args=(cam_list[i], video_writer, frame_height, frame_width,num_frames), daemon=True)
+        thread = ReturnValueThread(target=acquire_images, args=(cam_list[i], video_writer, frame_height, frame_width,num_frames,FRAME_RATE_HZ), daemon=True)
         threads.append(thread)
 
         print(f"Started acquisition thread.")
