@@ -20,7 +20,7 @@ Define interactions for PulsePal and get trigger timestamps logged (PC only)
 ## `run_on_demand_20hz_timed.py`
 
 Define interactions for PulsePal and get trigger timestamps logged, also controls camera/image acquistion
-and logs camera timestamp for each frame. Currently WIP.
+and logs camera timestamp for each frame. 
 
 ## `CameraTimeToPCTime`
 
@@ -53,32 +53,28 @@ Potential challenge
 - Configuring/playing pulses
 - Timestamp logging
 - Randomly turning on/off LED
-- Playing multiple trials automatically
 - User-controlled number of trials (button GUI)
 - Synced timestamps (I think this should work correctly now)
-- Works with PulsePal (but I seem to have the channels mixed up)
+- Works with PulsePal 
 - User input trial success (on terminal/command line since it's not really worth to to thread GUIs). Not pretty but functional.
 - Actual camera trigger works (only with Spinnaker 4.2/PySpin installed from wheels for whatever reason)
-
-
-## Hypothetically functional
 - Writing to video via script
 - Getting camera timestamps
 
-## Things to do
-- Configure stop button in case we need to end a trial early (for now just X out of the GUI)
-- Control number of total frames/time from GUI
-- Log camera image captures to video (I think it's AVI format)?
-- Figure out how to control frame rate
 
-## Issues
-- I need to thread the pulse pal triggers/boxes separately so they can run in parallel instead of freezing the other one for 10 seconds
-- I need to configure the stop button to actually stop the trials on demand. (X-ing out of the GUI also breaks the for loop and causes the txt files to save, but buttons would be nice to control each camera/box independently.)
-- For some reason, the camera is not collecting images. This happens even with the example code, so I'm not 100% sure 
+## Things to do
+- Configure stop/save button in case we need to end a trial early (for now just X out of the GUI)
+- Control number of total frames/time from GUI
+- Show image stream while the camera is running (make sure it is in a different thread from the GUI!)
+- Make the camera more verbose so that we know it's actually acquiring images during the trial instead of having to wait until the video is saved.
+- Last time I ran this, the video was shorter than expected (I have to check if that's an actual problem or just because another file was saving)
+- There are also cosmetic improvements to make it more user-friendly, but they are low priority.
+- I think it would be good to auto-generate folders for each day, each mouse, to improve the organization
+- Store log files somewhere that is not the repo folder (to avoid messes and losing things)
 
 ## Small notes, dependencies
 - Install PySpin first. This is tricky because there's a PyPi package online called *pyspin* which is not the right package. PySpin actually comes preinstalled with Spinnaker SDK IIRC and you have to install the correct one for your computer with pip from wheels.
-- However, since I can't find it on the lab computer/old version of Spinnaker, it turns out you can install it with `pip install spinnaker-python`.
+- However, since I can't find it on the lab computer/old version of Spinnaker, it turns out you can install it with `pip install spinnaker-python`. (This may or may not work with these scripts.)
 - Also requires pyserial (installed w Conda or pip), opencv, etc
 
 ## Big Note!
