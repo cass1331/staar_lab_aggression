@@ -180,6 +180,7 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
             calculate_offset = calculate_offset_older_usb
             print('This is an older U3V camera')
 
+        print(f'Camera offset is {calculate_offset(cam)}')
         # Start acquisition
         # cam.AcquisitionFrameRate.SetValue(20) #magic number, fix later
         cam.BeginAcquisition()
@@ -189,7 +190,7 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
 
         pc_timestamps = []
         for i in range(num_frames):
-            if i % 60 == 0:
+            if i % 10000 == 0:
                 print('Recording in progress. Acquired {} images...'.format(i))
             image = cam.GetNextImage(1000)
             # print('got image!')
@@ -200,6 +201,15 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
                 # print('Recording images...')
                 image_data = image.GetData().reshape(height, width, 1) #monochrome
                 cv2.imshow("Behavior Box Live Feed", image_data)
+                # Ensure the OpenCV GUI event loop runs so the window updates.
+                # Without waitKey, imshow will not refresh. Using a short delay
+                # keeps the display responsive and avoids blocking long-term.
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    # optional: handle user-requested quit from the display window
+                    # break out of the capture loop if desired
+                    print("User requested quit via cv window ('q' pressed).")
+                    # Note: do NOT call cam.EndAcquisition() here; caller will handle cleanup.
+                    break
                 writer.write(image_data)
                 # queue_.put(image_data)
 
@@ -211,12 +221,19 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
             # Convert timestamp
             converted_timestamp = timestamp / NS_PER_S + calculate_offset(cam)
 
+            
+
             # print('PC timestamp in seconds:', converted_timestamp)
             timestamp_full = '{:4}/{:02}/{:02} {:02}:{:02}:{:02}'.format(*time.localtime(converted_timestamp))
             pc_timestamps.append(timestamp_full)
             # print('PC timestamp:', timestamp_full)
         # print(pc_timestamps)
-        print("Okay, finished acquiring images. You can hit Stop and Save or close the GUI to save and exit. Do NOT Control-C or you will lose everything.")
+        print("Okay, finished acquiring images. You can hit Stop and Save or close the GUI to save and exit. Do NOT Control-C or you will lose the log files and be sad.")
+        # Close OpenCV windows created by this function to be tidy
+        try:
+            cv2.destroyWindow("Behavior Box Live Feed")
+        except Exception:
+            pass
         return pc_timestamps
 
     except PySpin.SpinnakerException as ex:

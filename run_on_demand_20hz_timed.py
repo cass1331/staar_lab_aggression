@@ -1,29 +1,30 @@
-# (Only the modified file is shown; unchanged parts remain the same in your repo)
+# (Edited file: run_on_demand_20hz_timed.py)
 # run_red_blue_pulse.py
 
 from pulse_pal import PulsePalObject, PulsePalError
 from CameraTimeToPCTime import calculate_offset_newer, setup_chunk_data, acquire_images
-from ReturnValueThread import ReturnValueThread 
+from ReturnValueThread import ReturnValueThread
 import time
 import random
 import datetime
 import tkinter as tk
+from tkinter import messagebox
 import PySpin
 import threading
-import unittest.mock as mock
+import queue
 import cv2
 import os
 import pandas as pd
 import re
 
 NS_PER_S = 1000000000  # Double check this but I'm p sure we have Blackfly S
-NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL'] 
+NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL']
 # --- Parameters You Can Change ---
 SERIAL_PORT = 'COM4'                # Your Pulse Pal's port name
 TOTAL_DURATION_SECONDS = 10
 FRAME_RATE_HZ = 20                  # Camera frame rate in Hz
 
-# --- Channel 1 Parameters (20Hz Pulse Train, BLUE) --- 
+# --- Channel 1 Parameters (20Hz Pulse Train, BLUE) ---
 BLUE = 2
 PULSE_VOLTAGE_BLUE = 5.0
 PULSE_FREQUENCY_HZ_BLUE = 20
@@ -43,29 +44,25 @@ if camera_time == '':
 else:
     camera_time = int(camera_time)
 
-num_frames = camera_time * FRAME_RATE_HZ  #20 fps
+num_frames = camera_time * 60  # fps
 
 
 print('To stop and save the session at any time, close the GUI window or hit the Stop and Save button.')
 
-if not os.path.exists(folder_name):
-    os.makedirs(folder_name)
-if not os.path.exists(log_folder_name):
-    os.makedirs(log_folder_name)
 
 time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
 time_rn = re.sub(r'[^a-zA-Z0-9_.-]', '_', time_rn)
 
 year_month_day = time_rn[:8]
 
-#make a subfolder for the day if it doesn't already exist
+# make a subfolder for the day if it doesn't already exist
 try:
     os.mkdir(os.path.join(folder_name, year_month_day))
 except FileExistsError:
     pass
 
 try:
-    os.mkdir(os.path.join(log_folder_name, year_month_day))
+    os.mkdir(os.path.join(folder_name, year_month_day,log_folder_name))
 except FileExistsError:
     pass
 
@@ -90,22 +87,35 @@ camera_log_file_path = os.path.join(folder_name, year_month_day, camera_log_fold
 
 print('Okay, proceeding. Saving video to ' + video_file_path + ' and time log to ' + log_file_path + '_time_log.csv and camera time log to' + camera_log_file_path )
 
-time_log = [] #log times of stimulations
-camera_timelog =[] #save camera-to-PC time conversions
+time_log = [] # log times of stimulations
+camera_timelog =[] # save camera-to-PC time conversions
 
-#collect data
+# collect data
 list_attacks = []
 start_times = []
 end_times = []
 on_status= []
 
-stop=False
+# queue for handing post-stim actions to main thread
+post_stim_queue = queue.Queue()
 
-def run_trial(): 
-    print(f"You triggered the stimulation. A 20 Hz 465 nm pulse train will run for 10 seconds.")
-    choice = random.random() > 0.5 #choose whether or not the stim will be triggred
+# polling management
+_poll_after_id = None
+_poll_running = False
+
+# for acquisition thread management
+_acq_threads = []
+
+# stop flag that can be checked by acquisition code if you add support
+stop_flag = threading.Event()
+
+def run_trial_background(choice):
+    """
+    Run PulsePal in a background thread. After the stim ends, put the
+    stim metadata into post_stim_queue for the main thread to handle.
+    """
     try:
-        print(f"Connecting to Pulse Pal on {SERIAL_PORT}...")
+        print(f"Background thread: Connecting to Pulse Pal on {SERIAL_PORT}...")
         myPulsePal = PulsePalObject(SERIAL_PORT)
         print("Connection successful.")
         print(f"\nConfiguring Channel {BLUE} for a {ON_DURATION_SECONDS_BLUE} seconds on, {OFF_DURATION_SECONDS_BLUE} seconds off train...")
@@ -115,7 +125,7 @@ def run_trial():
         myPulsePal.programOutputChannelParam('phase1Duration', channel=BLUE, value=ON_DURATION_SECONDS_BLUE)
         myPulsePal.programOutputChannelParam('interPulseInterval', channel=BLUE, value=OFF_DURATION_SECONDS_BLUE)
         myPulsePal.programOutputChannelParam('pulseTrainDuration', channel=BLUE, value=TOTAL_DURATION_SECONDS)
-        print("Channel 2 configuration complete.")
+        print("Channel configuration complete.")
         print("\nTriggering channel now.")
         print(f" -> Stimulation will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
         if choice:
@@ -123,19 +133,98 @@ def run_trial():
         start_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
         actually_on = bool(choice)
         print(f"\nProtocols initiated. The entire experiment will last for {TOTAL_DURATION_SECONDS} seconds.")
+        # During the sleep we could optionally check stop_flag if immediate abort is needed;
+        # for now we simply sleep the duration since pulse pal runs autonomously.
         time.sleep(TOTAL_DURATION_SECONDS)
         end_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
-        effective = input('Did the attack stop? y/n and hit enter: ')
-        time_log.append((start_stim, end_stim))
-        start_times.append(start_stim)
-        end_times.append(end_stim)
-        on_status.append(actually_on)
-        list_attacks.append(effective)
-        print("\n Pulse train finished. Ready for next trial.")
+        # Put stim metadata on queue for the main thread to ask the user via Tk dialog
+        post_stim_queue.put((start_stim, end_stim, actually_on))
+        print("\n Pulse train finished. Ready for next trial (main thread will ask about attack).")
     except PulsePalError as e:
         print(f"\nERROR: A Pulse Pal error occurred: {e}")
     except Exception as e:
-        print(f"\nERROR: A general error occurred: {e}")
+        print(f"\nERROR: A general error occurred in pulse thread: {e}")
+
+def run_trial():
+    """
+    Non-blocking wrapper that decides whether to stimulate, then starts the background thread.
+    """
+    print(f"You triggered the stimulation. A 20 Hz 465 nm pulse train will run for {TOTAL_DURATION_SECONDS} seconds.")
+    choice = random.random() > 0.5 # choose whether or not the stim will be triggered
+    t = threading.Thread(target=run_trial_background, args=(choice,), daemon=True)
+    t.start()
+
+def _poll_post_stim_queue(root):
+    """
+    Polls the queue for post-stim metadata and, when present, shows a Tkinter dialog
+    to record whether the attack stopped. This must run on the main thread.
+    Call root.after(100, _poll_post_stim_queue, root) once to start polling.
+    """
+    global _poll_after_id, _poll_running
+    try:
+        while not post_stim_queue.empty():
+            start_stim, end_stim, actually_on = post_stim_queue.get_nowait()
+            resp = messagebox.askquestion("Attack ended?", "Did the attack stop? (Yes = stopped, No = not stopped)")
+            effective = 'y' if resp == 'yes' else 'n'
+            # append to global lists (safe because running in main thread)
+            time_log.append((start_stim, end_stim))
+            start_times.append(start_stim)
+            end_times.append(end_stim)
+            on_status.append(actually_on)
+            list_attacks.append(effective)
+            print(f"Recorded stim: {start_stim} -> {end_stim}, was_on={actually_on}, attack_stopped={effective}")
+    except queue.Empty:
+        pass
+
+    # schedule next poll only if still running
+    if _poll_running:
+        # pass function and arg directly (no lambda); store handle so we can cancel
+        _poll_after_id = root.after(100, _poll_post_stim_queue, root)
+
+def _check_threads_then_close(root):
+    """
+    Called on main thread via root.after. If all acquisition threads have finished,
+    destroy the root to exit mainloop. Otherwise keep polling.
+    """
+    global _acq_threads, _poll_after_id
+    # if there are no threads to wait for, safe to destroy
+    if not _acq_threads:
+        try:
+            root.destroy()
+        except Exception:
+            pass
+        return
+
+    any_alive = any(t.is_alive() for t in _acq_threads)
+    if any_alive:
+        _poll_after_id = root.after(200, _check_threads_then_close, root)
+    else:
+        try:
+            root.destroy()
+        except Exception:
+            pass
+
+def stop_and_save(root):
+    """
+    Signal acquisition to stop, stop the messagebox poller, then wait for
+    acquisition threads to end. When they're done, destroy the root so main()
+    can continue and save files.
+    """
+    global _poll_after_id, _poll_running, _acq_threads, stop_flag
+    # stop polling for post-stim dialogs
+    _poll_running = False
+    try:
+        if _poll_after_id is not None:
+            root.after_cancel(_poll_after_id)
+            _poll_after_id = None
+    except Exception:
+        pass
+
+    # signal the acquisition threads to stop if they respect stop_flag
+    stop_flag.set()
+
+    # schedule checking whether threads are done
+    root.after(100, _check_threads_then_close, root)
 
 def main():
     # get the setup for the cameras
@@ -155,9 +244,15 @@ def main():
     root.title("Pulse Trigger")
     root.geometry("300x150")
 
+    # start polling the post_stim_queue so messageboxes run on the main thread
+    global _poll_running, _poll_after_id, _acq_threads
+    _poll_running = True
+    _poll_after_id = root.after(100, _poll_post_stim_queue, root)
+
     camera_timelog = []
     stopwatch = time.time()
     threads = []
+    _acq_threads = []
 
     for i,cam in enumerate(cam_list):
         if str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\0180439A_0':
@@ -176,30 +271,35 @@ def main():
 
         # Pass height, width in the order that acquire_images expects
         # acquire_images(cam, writer, height, width)
+        # Note: acquire_images doesn't currently accept a stop_flag; if you refactor it,
+        # pass stop_flag into it so it can exit early when stop_flag.is_set() is True.
         thread = ReturnValueThread(target=acquire_images, args=(cam_list[i], video_writer, frame_height, frame_width,num_frames,FRAME_RATE_HZ), daemon=True)
         threads.append(thread)
+        _acq_threads.append(thread)
 
         print(f"Started acquisition thread.")
         tk.Label(root, text="Run Stimulation on Demand:").pack()
         run_button = tk.Button(root, text="Run Pulse Train", command=run_trial)
-        save_button = tk.Button(root, text="Stop and Save", command=root.destroy)
+        save_button = tk.Button(root, text="Stop and Save", command=lambda r=root: stop_and_save(r))
         run_button.pack(pady=10)
         save_button.pack(pady=10)
         thread.start()
-
-        if stop:
-            break
-
     
+    # enter GUI loop; stop_and_save will destroy root when threads are done
     root.mainloop()
 
+    print('sanity check to ensure exited mainloop')
+
+    # join acquisition threads and collect camera timestamps
     for thread in threads:
         camera_timelog.append(thread.join())
 
+    print('sanity check to ensure collected camera timestamps')
 
+    # release writer and save logs
     video_writer.release()
     print('Video saved to ' + video_file_path)
-    
+
     stim_dict = {'start_times': start_times, 'end_times': end_times, 'on_status': on_status, 'stim_stopped_attack': list_attacks}
     stim_df = pd.DataFrame.from_dict(stim_dict)
     stim_df.to_csv(log_file_path)
@@ -226,3 +326,12 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
+
+
