@@ -47,7 +47,7 @@ else:
 num_frames = camera_time * 60  # fps
 
 
-print('To stop and save the session at any time, close the GUI window or hit the Stop and Save button.')
+print('Once the session is running, do not close the GUI or command line/terminal until the camera has finished grabbing images.')
 
 
 time_rn = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
@@ -63,6 +63,11 @@ except FileExistsError:
 
 try:
     os.mkdir(os.path.join(folder_name, year_month_day,log_folder_name))
+except FileExistsError:
+    pass
+
+try:
+    os.mkdir(os.path.join(folder_name, year_month_day,camera_log_folder_name))
 except FileExistsError:
     pass
 
@@ -130,13 +135,13 @@ def run_trial_background(choice):
         print(f" -> Stimulation will start immediately and run for {TOTAL_DURATION_SECONDS}s.")
         if choice:
             myPulsePal.triggerOutputChannels(channel1=0,channel2=1,channel3=0, channel4=0)
-        start_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        start_stim = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
         actually_on = bool(choice)
         print(f"\nProtocols initiated. The entire experiment will last for {TOTAL_DURATION_SECONDS} seconds.")
         # During the sleep we could optionally check stop_flag if immediate abort is needed;
         # for now we simply sleep the duration since pulse pal runs autonomously.
         time.sleep(TOTAL_DURATION_SECONDS)
-        end_stim = datetime.datetime.now().strftime("%Y%m%d_%H:%M:%S")
+        end_stim = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
         # Put stim metadata on queue for the main thread to ask the user via Tk dialog
         post_stim_queue.put((start_stim, end_stim, actually_on))
         print("\n Pulse train finished. Ready for next trial (main thread will ask about attack).")

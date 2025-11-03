@@ -3,6 +3,8 @@
 
 ## We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
 
+![Screenshot of experiment running]("\screenshots\Screenshot 2025-11-03 143911.png")
+
 ### Files to note:
 
 ## `ArCOM.py`
@@ -60,8 +62,6 @@ Potential challenge
 - Actual camera trigger works (only with Spinnaker 4.2/PySpin installed from wheels for whatever reason)
 - Writing to video via script
 - Getting camera timestamps
-
-## Things that should be functional but I need to test and make sure
 - Setting number of frames from user input
 - Stop and save button
 - Displaying video while camera is streaming

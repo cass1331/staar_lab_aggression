@@ -33,6 +33,7 @@
 
 
 import time
+import datetime
 import PySpin
 import cv2
 
@@ -219,12 +220,11 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
             # print('Chunk timestamp:', timestamp)
 
             # Convert timestamp
-            converted_timestamp = timestamp / NS_PER_S + calculate_offset(cam)
-
-            
+            converted_timestamp = timestamp / NS_PER_S + calculate_offset(cam)            
 
             # print('PC timestamp in seconds:', converted_timestamp)
-            timestamp_full = '{:4}/{:02}/{:02} {:02}:{:02}:{:02}'.format(*time.localtime(converted_timestamp))
+            # timestamp_full = '{:4}/{:02}/{:02} {:02}:{:02}:{:02}'.format(*time.localtime(converted_timestamp))
+            timestamp_full = datetime.datetime.fromtimestamp(converted_timestamp).strftime('%Y-%m-%d_%H:%M:%S.%f')
             pc_timestamps.append(timestamp_full)
             # print('PC timestamp:', timestamp_full)
         # print(pc_timestamps)
