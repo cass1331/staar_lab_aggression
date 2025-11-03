@@ -76,6 +76,6 @@ Potential challenge
 
 ## Big Note!
 
-Apparently, only one 'application' can control the camera at once. To have the script retrieve the camera timestamps, configure the camera settings in SpinView, close SpinView, and then run the script (run_red_blue_pulse_timed.py), which will take care of everything, including image acquistion, with some very barebones GUIs.
+Apparently, only one 'application' can control the camera at once. To have the script retrieve the camera timestamps, configure the camera settings in SpinView, close SpinView, and then run the script (run_on_demand_20hz_timed.py), which will take care of everything, including image acquistion, with some very barebones GUIs.
 
 
