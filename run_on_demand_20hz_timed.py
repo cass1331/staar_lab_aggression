@@ -140,7 +140,13 @@ def run_trial_background(choice):
         print(f"\nProtocols initiated. The entire experiment will last for {TOTAL_DURATION_SECONDS} seconds.")
         # During the sleep we could optionally check stop_flag if immediate abort is needed;
         # for now we simply sleep the duration since pulse pal runs autonomously.
-        time.sleep(TOTAL_DURATION_SECONDS)
+        
+        time.sleep(TOTAL_DURATION_SECONDS) # remove sleep trigger?
+        #add button to log time when attack stops 
+        #attack_stim = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
+        #save extra column in csv for attack stop time
+
+
         end_stim = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
         # Put stim metadata on queue for the main thread to ask the user via Tk dialog
         post_stim_queue.put((start_stim, end_stim, actually_on))
