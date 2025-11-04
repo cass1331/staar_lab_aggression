@@ -3,7 +3,7 @@
 
 ## We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
 
-![Screenshot of experiment running](https://github.com/cass1331/staar_lab_aggression/blob/main/screenshots/Screenshot%202025-11-03%20143911.png)
+![Screenshot of experiment running](https://github.com/cass1331/staar_lab_aggression/blob/main/screenshots/Screenshot%202025-11-03%20163651.png)
 
 ### Files to note:
 
