@@ -3,7 +3,7 @@
 
 ## We’re testing how brief pulses of light alter whether an animal initiates a fight, and how long attacks last.
 
-![Screenshot of experiment running](https://github.com/cass1331/staar_lab_aggression/blob/main/screenshots/Screenshot%202025-11-03%20143911.png)
+![Screenshot of experiment running](https://github.com/cass1331/staar_lab_aggression/blob/main/screenshots/Screenshot%202025-11-03%20163651.png)
 
 ### Files to note:
 
@@ -58,7 +58,7 @@ Potential challenge
 - User-controlled number of trials (button GUI)
 - Synced timestamps (I think this should work correctly now)
 - Works with PulsePal 
-- User input trial success (on terminal/command line since it's not really worth to to thread GUIs). Not pretty but functional.
+- Attack stop recording
 - Actual camera trigger works (only with Spinnaker 4.2/PySpin installed from wheels for whatever reason)
 - Writing to video via script
 - Getting camera timestamps

@@ -96,8 +96,9 @@ time_log = [] # log times of stimulations
 camera_timelog =[] # save camera-to-PC time conversions
 
 # collect data
-list_attacks = []
+# list_attacks = []
 start_times = []
+attack_stop_times = []
 end_times = []
 on_status= []
 
@@ -175,15 +176,16 @@ def _poll_post_stim_queue(root):
     try:
         while not post_stim_queue.empty():
             start_stim, end_stim, actually_on = post_stim_queue.get_nowait()
-            resp = messagebox.askquestion("Attack ended?", "Did the attack stop? (Yes = stopped, No = not stopped)")
-            effective = 'y' if resp == 'yes' else 'n'
+            # resp = messagebox.askquestion("Attack ended?", "Did the attack stop? (Yes = stopped, No = not stopped)")
+            # effective = 'y' if resp == 'yes' else 'n'
             # append to global lists (safe because running in main thread)
             time_log.append((start_stim, end_stim))
             start_times.append(start_stim)
             end_times.append(end_stim)
             on_status.append(actually_on)
-            list_attacks.append(effective)
-            print(f"Recorded stim: {start_stim} -> {end_stim}, was_on={actually_on}, attack_stopped={effective}")
+            # list_attacks.append(effective)
+            # print(f"Recorded stim: {start_stim} -> {end_stim}, was_on={actually_on}, attack_stopped={effective}")
+            print(f"Recorded stim: {start_stim} -> {end_stim}, was_on={actually_on}")
     except queue.Empty:
         pass
 
@@ -236,6 +238,11 @@ def stop_and_save(root):
 
     # schedule checking whether threads are done
     root.after(100, _check_threads_then_close, root)
+
+def record_attack_stop():
+    stop_time = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
+    attack_stop_times.append(stop_time)
+    print(f'You recorded an attack stop at {stop_time}. Don\'t press the button again during this pulse train.')
 
 def main():
     # get the setup for the cameras
@@ -291,8 +298,10 @@ def main():
         print(f"Started acquisition thread.")
         tk.Label(root, text="Run Stimulation on Demand:").pack()
         run_button = tk.Button(root, text="Run Pulse Train", command=run_trial)
+        attack_end_button = tk.Button(root, text="Record Attack Stop", command=record_attack_stop)
         save_button = tk.Button(root, text="Stop and Save", command=lambda r=root: stop_and_save(r))
         run_button.pack(pady=10)
+        attack_end_button.pack(pady=10)
         save_button.pack(pady=10)
         thread.start()
     
@@ -310,8 +319,8 @@ def main():
     # release writer and save logs
     video_writer.release()
     print('Video saved to ' + video_file_path)
-
-    stim_dict = {'start_times': start_times, 'end_times': end_times, 'on_status': on_status, 'stim_stopped_attack': list_attacks}
+    stim_dict = {'start_times': start_times, 'attack_stop_times': attack_stop_times, 'end_times': end_times, 'on_status': on_status}
+    # stim_dict = {'start_times': start_times, 'attack_stop_times': attack_stop_times, 'end_times': end_times, 'on_status': on_status, 'stim_stopped_attack': list_attacks}
     stim_df = pd.DataFrame.from_dict(stim_dict)
     stim_df.to_csv(log_file_path)
     print(f"Time log saved to {log_file_path}")
