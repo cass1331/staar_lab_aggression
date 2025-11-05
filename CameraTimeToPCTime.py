@@ -199,19 +199,21 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
                 print('Warning: image {} incomplete'.format(image.GetFrameID()))
                 continue
             else:
-                # print('Recording images...')
-                image_data = image.GetData().reshape(height, width, 1) #monochrome
-                cv2.imshow("Behavior Box Live Feed", image_data)
-                # Ensure the OpenCV GUI event loop runs so the window updates.
-                # Without waitKey, imshow will not refresh. Using a short delay
-                # keeps the display responsive and avoids blocking long-term.
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    # optional: handle user-requested quit from the display window
-                    # break out of the capture loop if desired
-                    print("User requested quit via cv window ('q' pressed).")
-                    # Note: do NOT call cam.EndAcquisition() here; caller will handle cleanup.
-                    break
-                writer.write(image_data)
+                
+                if (i+1) % 3 == 0:  #downsample in place
+                    image_data = image.GetData().reshape(height, width, 1) #monochrome
+                    # print('Recording images...')
+                    cv2.imshow("Behavior Box Live Feed", image_data)
+                    # Ensure the OpenCV GUI event loop runs so the window updates.
+                    # Without waitKey, imshow will not refresh. Using a short delay
+                    # keeps the display responsive and avoids blocking long-term.
+                    writer.write(image_data)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        # optional: handle user-requested quit from the display window
+                        # break out of the capture loop if desired
+                        print("User requested quit via cv window ('q' pressed).")
+                        # Note: do NOT call cam.EndAcquisition() here; caller will handle cleanup.
+                        break
                 # queue_.put(image_data)
 
 
