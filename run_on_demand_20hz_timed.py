@@ -74,8 +74,8 @@ except FileExistsError:
 video_file_path = os.path.join(folder_name, year_month_day, name_file + time_rn + '.'+format_file)
 
 # Clarify width/height explicitly to avoid swaps
-frame_width = 720   # pixels (width)
-frame_height = 540  # pixels (height)
+frame_width = 520   # pixels (width)
+frame_height = 520  # pixels (height)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
 # VideoWriter expects frameSize=(width, height)
@@ -256,7 +256,9 @@ def main():
         return
 
     for i, cam in enumerate(cam_list):
-        cam.Init()
+        #try
+        cam.Init(camROI=[0,0,frame_width,frame_height])  # set ROI to desired width/height])
+        #cam.Init()
 
     root = tk.Tk()
     root.title("Pulse Trigger")
@@ -291,7 +293,8 @@ def main():
         # acquire_images(cam, writer, height, width)
         # Note: acquire_images doesn't currently accept a stop_flag; if you refactor it,
         # pass stop_flag into it so it can exit early when stop_flag.is_set() is True.
-        thread = ReturnValueThread(target=acquire_images, args=(cam_list[i], video_writer, frame_height, frame_width,num_frames,FRAME_RATE_HZ), daemon=True)
+        thread = ReturnValueThread(target=acquire_images, args=(cam_list[i], video_writer, frame_height, 
+                                                                frame_width,num_frames,FRAME_RATE_HZ), daemon=True)
         threads.append(thread)
         _acq_threads.append(thread)
 
