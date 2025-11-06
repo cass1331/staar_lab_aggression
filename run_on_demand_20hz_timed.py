@@ -44,7 +44,7 @@ if camera_time == '':
 else:
     camera_time = int(camera_time)
 
-num_frames = camera_time * 60  # fps
+num_frames = camera_time * FRAME_RATE_HZ  # fps
 
 
 print('Once the session is running, do not close the GUI or command line/terminal until the camera has finished grabbing images.')
@@ -257,8 +257,8 @@ def main():
 
     for i, cam in enumerate(cam_list):
         #try
-        cam.Init(camROI=[0,0,frame_width,frame_height])  # set ROI to desired width/height])
-        #cam.Init()
+        # cam.Init(camROI=[0,0,frame_width,frame_height])  # set ROI to desired width/height])
+        cam.Init()
 
     root = tk.Tk()
     root.title("Pulse Trigger")
