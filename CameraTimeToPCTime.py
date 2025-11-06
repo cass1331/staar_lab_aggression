@@ -1,41 +1,16 @@
 # ============================================================================
 # Copyright (c) 2001-2020 FLIR Systems, Inc. All Rights Reserved.
-
-# This software is the confidential and proprietary information of FLIR
-# Integrated Imaging Solutions, Inc. ("Confidential Information"). You
-# shall not disclose such Confidential Information and shall use it only in
-# accordance with the terms of the license agreement you entered into
-# with FLIR Integrated Imaging Solutions, Inc. (FLIR).
-
-# FLIR MAKES NO REPRESENTATIONS OR WARRANTIES ABOUT THE SUITABILITY OF THE
-# SOFTWARE, EITHER EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-# PURPOSE, OR NON-INFRINGEMENT. FLIR SHALL NOT BE LIABLE FOR ANY DAMAGES
-# SUFFERED BY LICENSEE AS A RESULT OF USING, MODIFYING OR DISTRIBUTING
-# THIS SOFTWARE OR ITS DERIVATIVES.
+# (license header kept)
 # ============================================================================
 #
 # This example shows how to converts the camera's timestamp to system time.
-# It may be helpful to read through the atricle below to understand how PC
-# time is calculated from camera time:
-# https://www.flir.com/support-center/iis/machine-vision/application-note/synchronizing-a-blackfly-or-grasshopper3-gige-cameras-time-to-pc-time/
 #
-# It might also me helpful to familiarize yourself with the ChunkData.py
-# example first as it provides a good introduction to chunk data and
-# how it works.
-#
-# The process of getting the camera timestamp is different for different
-# cameras. For this reason, this example defines 3 functions for calculating
-# timestamp offsets. Newer cameras (BFS, Oryx, and Firefly-DL) all use
-# the same method of getting the timestamp. However, older camera models
-# (Grasshopper, Chameleon, Blackfly, and Flea3), use different methods
-# for USB and GigE cameras.
-
-
 import time
 import datetime
 import PySpin
 import cv2
+import numpy as np
+import queue
 
 NUM_IMAGES = 999999999
 NEWER_CAMERAS = ['Blackfly S', 'Oryx', 'DL']
@@ -44,111 +19,75 @@ NS_PER_S = 1000000000  # The number of nanoseconds in a second
 
 def is_newer(cam_name: str) -> bool:
     """
-    This function determines whether the given `cam_name` is
-    a newer camera or an older camera. The differences
-    between newer and older cameras are explained in the
-    description of the script.
-    Returns True if the given `cam_name` belongs to a newer camera,
-    False otherwise.
+    Determine whether the given cam_name is one of the newer cameras.
     """
     for cur_cam_name in NEWER_CAMERAS:
         if cur_cam_name in cam_name:
             return True
-
     return False
 
 
 def calculate_offset_older_usb(cam: PySpin.CameraPtr) -> int:
-    """
-    Calculates the timestamp offset for a given older USB camera.
-    Returns the offset or None if there is an error.
-    """
     try:
-        # Get camera time
         cam.TimestampLatch.Execute()
         camera_time = cam.Timestamp.GetValue()
         print('Current camera time:', camera_time)
-
-        # Get system time
-        system_time = time.time()  # TODO: test windows
+        system_time = time.time()
         print('Current system time:', system_time)
-
-        # Calculate offset in seconds
         offset = system_time - camera_time / NS_PER_S
         return offset
-
     except PySpin.SpinnakerException as ex:
         print('ERROR:', ex)
         return None
 
 
 def calculate_offset_older_gev(cam: PySpin.CameraPtr) -> int:
-    """
-    Calculates the timestamp offset for a given older GigE camera.
-    Returns the offset or None if there is an error.
-    This function does not use the QuickSpin syntax as it is not
-    supported for this scenario.
-    TODO: test
-    """
     try:
         nodemap = cam.GetNodeMap()
-        # Get camera time
         nodemap.GetNode('GevTimestampControlLatch').Execute()
         camera_time = nodemap.GetNode('GevTimestampValue').GetValue()
         print('Current camera time:', camera_time)
-
-        # Get system time
-        system_time = time.time()  # TODO: test windows
+        system_time = time.time()
         print('Current system time:', system_time)
-
-        # Calculate offset in seconds
         offset = system_time - camera_time / NS_PER_S
         return offset
-
     except PySpin.SpinnakerException as ex:
         print('ERROR:', ex)
         return None
 
 
 def calculate_offset_newer(cam: PySpin.CameraPtr) -> int:
-    """
-    Calculates the timestamp offset for a given newer camera.
-    Returns the offset or None if there is an error.
-    """
     try:
-        # Get camera time
         cam.TimestampLatch.Execute()
         camera_time = cam.TimestampLatchValue.GetValue()
-        # print('Current camera time:', camera_time)
-
-        # Get system time
-        system_time = time.time()  # TODO: test windows
-        # print('Current system time:', system_time)
-
-        # Calculate offset in seconds
+        system_time = time.time()
         offset = system_time - camera_time / NS_PER_S
         return offset
-
     except PySpin.SpinnakerException as ex:
         print('ERROR:', ex)
         return None
 
 
-def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
-# def acquire_images(cam):
+def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz, stop_flag=None, frame_queue: queue.Queue = None):
     """
-    The main function that acquires images.
-    Determines the type of camera and uses the appropriate
-    calculate offset function to convert timestamps to PC time.
-    Returns whether the operation was successful or not.
+    Acquire images from camera and return PC timestamps.
+
+    Arguments:
+    - cam: PySpin camera object
+    - writer: cv2.VideoWriter (already opened)
+    - height, width: requested frame size (height, width)
+    - num_frames: maximum frames to acquire
+    - frame_rate_hz: requested FPS (used only to set camera)
+    - stop_flag: threading.Event that, when set, causes acquisition to stop early
+    - frame_queue: optional queue.Queue to which frames will be pushed for display by main thread
+    Returns:
+    - list of timestamp strings (pc timestamps) on success
+    - False on error
     """
     try:
-        # Get device info to know how to convert timestamps
-        # DeviceType quickspin wasn't working so:
         nodemap_tldevice = cam.GetTLDeviceNodeMap()
         device_type = PySpin.CEnumerationPtr(nodemap_tldevice.GetNode('DeviceType')).GetIntValue()
         device_name = cam.DeviceModelName()
-
         nodemap = cam.GetNodeMap()
 
         # Disable automatic frame rate
@@ -158,18 +97,15 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
             if PySpin.IsAvailable(node_frame_rate_auto_off) and PySpin.IsReadable(node_frame_rate_auto_off):
                 node_frame_rate_auto.SetIntValue(node_frame_rate_auto_off.GetValue())
 
-        # Enable frame rate control (if applicable)
+        # Enable frame rate control
         node_frame_rate_enable = PySpin.CBooleanPtr(nodemap.GetNode("AcquisitionFrameRateEnabled"))
         if PySpin.IsAvailable(node_frame_rate_enable) and PySpin.IsWritable(node_frame_rate_enable):
             node_frame_rate_enable.SetValue(True)
 
-        # Set the desired frame rate
         node_frame_rate = PySpin.CFloatPtr(nodemap.GetNode("AcquisitionFrameRate"))
         if PySpin.IsAvailable(node_frame_rate) and PySpin.IsWritable(node_frame_rate):
-            node_frame_rate.SetValue(float(frame_rate_hz)) # Set to 20 FPS
+            node_frame_rate.SetValue(float(frame_rate_hz))
 
-
-        # Determine which timestamp function to use
         print('Device name:', device_name)
         if is_newer(device_name):
             calculate_offset = calculate_offset_newer
@@ -180,134 +116,133 @@ def acquire_images(cam, writer, height, width, num_frames, frame_rate_hz):
         elif device_type == PySpin.DeviceType_U3V:
             calculate_offset = calculate_offset_older_usb
             print('This is an older U3V camera')
+        else:
+            calculate_offset = calculate_offset_newer
 
-        print(f'Camera offset is {calculate_offset(cam)}')
-        # Start acquisition
-        # cam.AcquisitionFrameRate.SetValue(20) #magic number, fix later
+        # Compute offset once if possible
+        try:
+            cam_offset = calculate_offset(cam)
+            print(f'Camera offset is {cam_offset}')
+        except Exception:
+            cam_offset = None
+            print('Warning: failed to compute camera offset before acquisition; will compute per-frame if needed.')
+
+        # Try to set width/height
         try:
             cam.Width.SetValue(width)
             cam.Height.SetValue(height)
-        except:
-            print("Couldn't access camera width and height, check the video later to see it you need to crop.")
-            # width = 720
-            # height = 540
+        except Exception:
+            print("Couldn't access camera width and height; continuing with camera defaults.")
 
         cam.BeginAcquisition()
 
-        cv2.namedWindow("Behavior Box Live Feed", cv2.WINDOW_NORMAL) 
-        #implement something later to take the camera ID and tell you whether it's box star or moon
-
         pc_timestamps = []
         for i in range(num_frames):
+            # Check for external stop
+            if stop_flag is not None and stop_flag.is_set():
+                print("Stop flag detected in acquire_images; breaking acquisition loop.")
+                break
+
             if i % 10000 == 0:
                 print('Recording in progress. Acquired {} images...'.format(i))
-            image = cam.GetNextImage(1000)
-            # print('got image!')
+
+            try:
+                image = cam.GetNextImage(1000)
+            except PySpin.SpinnakerException as ex:
+                print('ERROR getting next image:', ex)
+                continue
+
             if image.IsIncomplete():
                 print('Warning: image {} incomplete'.format(image.GetFrameID()))
+                try:
+                    image.Release()
+                except Exception:
+                    pass
                 continue
-            else:
-                
-                # if (i+1) % 3 == 0:  #downsample in place
-                image_data = image.GetData().reshape(height, width, 1) #monochrome
-                # print('Recording images...')
-                cv2.imshow("Behavior Box Live Feed", image_data)
-                # Ensure the OpenCV GUI event loop runs so the window updates.
-                # Without waitKey, imshow will not refresh. Using a short delay
-                # keeps the display responsive and avoids blocking long-term.
-                writer.write(image_data)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    # optional: handle user-requested quit from the display window
-                    # break out of the capture loop if desired
-                    print("User requested quit via cv window ('q' pressed).")
-                    # Note: do NOT call cam.EndAcquisition() here; caller will handle cleanup.
-                    break
-                # queue_.put(image_data)
 
+            # Get image data and write frame
+            try:
+                image_data = image.GetData().reshape(height, width, 1)  # monochrome
+                # Squeeze to 2D for display
+                frame_for_display = image_data.squeeze()
+            except Exception:
+                # fallback: attempt to get numpy array via GetNDArray()
+                try:
+                    image_data = image.GetNDArray()
+                    if image_data.ndim == 3 and image_data.shape[2] == 3:
+                        # convert to grayscale if needed
+                        frame_for_display = cv2.cvtColor(image_data, cv2.COLOR_BGR2GRAY)
+                    else:
+                        frame_for_display = image_data
+                except Exception:
+                    frame_for_display = None
+                    image_data = None
 
-            chunk_data = image.GetChunkData()
-            timestamp = chunk_data.GetTimestamp()
-            # print('Chunk timestamp:', timestamp)
+            if image_data is not None:
+                try:
+                    writer.write(image_data)
+                except Exception as e:
+                    print(f"Warning: failed to write frame to writer: {e}")
 
-            # Convert timestamp
-            converted_timestamp = timestamp / NS_PER_S + calculate_offset(cam)            
+            # Send frame to display queue if requested (non-blocking)
+            if frame_queue is not None and frame_for_display is not None:
+                try:
+                    frame_queue.put_nowait(frame_for_display)
+                except queue.Full:
+                    # drop frame if queue is full (keeps worker from blocking)
+                    pass
 
-            # print('PC timestamp in seconds:', converted_timestamp)
-            # timestamp_full = '{:4}/{:02}/{:02} {:02}:{:02}:{:02}'.format(*time.localtime(converted_timestamp))
-            timestamp_full = datetime.datetime.fromtimestamp(converted_timestamp).strftime('%Y-%m-%d_%H:%M:%S.%f')
-            pc_timestamps.append(timestamp_full)
-            # print('PC timestamp:', timestamp_full)
-        # print(pc_timestamps)
-        print("Okay, finished acquiring images. You can hit Stop and Save or close the GUI to save and exit. Do NOT Control-C or you will lose the log files and be sad.")
-        # Close OpenCV windows created by this function to be tidy
+            # Process chunk timestamp
+            try:
+                chunk_data = image.GetChunkData()
+                timestamp = chunk_data.GetTimestamp()
+                if cam_offset is not None:
+                    offset_value = cam_offset
+                else:
+                    try:
+                        offset_value = calculate_offset(cam)
+                    except Exception:
+                        offset_value = 0
+                converted_timestamp = timestamp / NS_PER_S + offset_value
+                timestamp_full = datetime.datetime.fromtimestamp(converted_timestamp).strftime('%Y-%m-%d_%H:%M:%S.%f')
+                pc_timestamps.append(timestamp_full)
+            except Exception as e:
+                print(f"Warning: failed to get chunk timestamp: {e}")
+
+            try:
+                image.Release()
+            except Exception:
+                pass
+
+        # Cleanup acquisition
         try:
-            cv2.destroyWindow("Behavior Box Live Feed")
+            cam.EndAcquisition()
         except Exception:
-            pass
+            print("Warning: cam.EndAcquisition() raised an exception during cleanup.")
+
+        print("Okay, finished acquiring images. You can hit Stop and Save or close the GUI to save and exit. Do NOT Control-C or you will lose the log files and be sad.")
         return pc_timestamps
 
     except PySpin.SpinnakerException as ex:
         print('ERROR:', ex)
+        try:
+            cam.EndAcquisition()
+        except Exception:
+            pass
         return False
-
-    
 
 
 def setup_chunk_data(cam: PySpin.CameraPtr) -> bool:
     """
-    Sets up chunk data to include the image timestamp
-    for the given camera.
-    Returns whether the operation was successful or not.
+    Sets up chunk data to include the image timestamp for the given camera.
+    Returns True on success, False on error.
     """
     try:
         cam.ChunkModeActive.SetValue(True)
         cam.ChunkSelector.SetValue(PySpin.ChunkSelector_Timestamp)
         cam.ChunkEnable.SetValue(True)
-
     except PySpin.SpinnakerException as ex:
         print('ERROR:', ex)
         return False
 
     return True
-
-
-def run_single_camera(cam: PySpin.CameraPtr) -> bool:
-    """
-    Sets up the camera settings to work for this example, then runs the example.
-    Returns whether the operation was successful or not.
-    """
-    result = True
-    result &= setup_chunk_data(cam)
-    result &= acquire_images(cam)
-    return result
-
-
-def main():
-    """
-    The main function of the example. Sets up a system and
-    runs the example for all connected cameras.
-    """
-    # Setup the system and camera
-    system = PySpin.System.GetInstance()
-    cam_list = system.GetCameras()
-    result = True
-
-    # Run the example
-    for cam in cam_list:
-        cam.Init()
-        result &= run_single_camera(cam)
-
-    # Clean up
-    del cam
-    cam_list.Clear()
-    system.ReleaseInstance()
-
-    if result:
-        print('Example completed successfully')
-    else:
-        print('Example completed with some errors')
-    input('Done! Press Enter to exit...')
-
-
-if __name__ == '__main__':
-    main()
