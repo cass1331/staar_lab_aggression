@@ -44,7 +44,7 @@ if camera_time == '':
 else:
     camera_time = int(camera_time)
 
-num_frames = camera_time * 60  # fps
+num_frames = camera_time * FRAME_RATE_HZ  # fps
 
 
 print('Once the session is running, do not close the GUI or command line/terminal until the camera has finished grabbing images.')
@@ -112,8 +112,12 @@ _poll_running = False
 # for acquisition thread management
 _acq_threads = []
 
-# stop flag that can be checked by acquisition code if you add support
+# stop flag that can be checked by acquisition code
 stop_flag = threading.Event()
+
+# frame queue for live preview (bounded to avoid memory growth)
+frame_queue = queue.Queue(maxsize=16)
+
 
 def run_trial_background(choice):
     """
@@ -139,23 +143,15 @@ def run_trial_background(choice):
         start_stim = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
         actually_on = bool(choice)
         print(f"\nProtocols initiated. The entire experiment will last for {TOTAL_DURATION_SECONDS} seconds.")
-        # During the sleep we could optionally check stop_flag if immediate abort is needed;
-        # for now we simply sleep the duration since pulse pal runs autonomously.
-        
-        time.sleep(TOTAL_DURATION_SECONDS) # remove sleep trigger?
-        #add button to log time when attack stops 
-        #attack_stim = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
-        #save extra column in csv for attack stop time
-
-
+        time.sleep(TOTAL_DURATION_SECONDS)
         end_stim = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
-        # Put stim metadata on queue for the main thread to ask the user via Tk dialog
         post_stim_queue.put((start_stim, end_stim, actually_on))
         print("\n Pulse train finished. Ready for next trial (main thread will ask about attack).")
     except PulsePalError as e:
         print(f"\nERROR: A Pulse Pal error occurred: {e}")
     except Exception as e:
         print(f"\nERROR: A general error occurred in pulse thread: {e}")
+
 
 def run_trial():
     """
@@ -166,33 +162,59 @@ def run_trial():
     t = threading.Thread(target=run_trial_background, args=(choice,), daemon=True)
     t.start()
 
+
 def _poll_post_stim_queue(root):
     """
-    Polls the queue for post-stim metadata and, when present, shows a Tkinter dialog
-    to record whether the attack stopped. This must run on the main thread.
-    Call root.after(100, _poll_post_stim_queue, root) once to start polling.
+    Polls the queue for post-stim metadata and, when present, records stim metadata.
+    Runs on the main thread.
     """
     global _poll_after_id, _poll_running
     try:
         while not post_stim_queue.empty():
             start_stim, end_stim, actually_on = post_stim_queue.get_nowait()
-            # resp = messagebox.askquestion("Attack ended?", "Did the attack stop? (Yes = stopped, No = not stopped)")
-            # effective = 'y' if resp == 'yes' else 'n'
-            # append to global lists (safe because running in main thread)
             time_log.append((start_stim, end_stim))
             start_times.append(start_stim)
             end_times.append(end_stim)
             on_status.append(actually_on)
-            # list_attacks.append(effective)
-            # print(f"Recorded stim: {start_stim} -> {end_stim}, was_on={actually_on}, attack_stopped={effective}")
             print(f"Recorded stim: {start_stim} -> {end_stim}, was_on={actually_on}")
     except queue.Empty:
         pass
 
     # schedule next poll only if still running
     if _poll_running:
-        # pass function and arg directly (no lambda); store handle so we can cancel
         _poll_after_id = root.after(100, _poll_post_stim_queue, root)
+
+
+def display_frames(root):
+    """
+    Main-thread display function: pop frames from frame_queue and show them using cv2.imshow.
+    Scheduled via root.after so it runs on the main thread (safe for OpenCV GUI).
+    """
+    try:
+        # Drain up to a few frames each tick to keep preview responsive and not lag too far
+        drained = 0
+        while drained < 2:
+            try:
+                frame = frame_queue.get_nowait()
+            except queue.Empty:
+                break
+            if frame is not None:
+                try:
+                    cv2.imshow("Behavior Box Live Feed", frame)
+                    # process events, small delay; this must be called on main thread
+                    cv2.waitKey(1)
+                except Exception as e:
+                    print(f"Warning: display failed on main thread: {e}")
+            drained += 1
+    except Exception as e:
+        print(f"Warning in display_frames loop: {e}")
+
+    # keep scheduling while GUI is alive
+    try:
+        root.after(30, display_frames, root)
+    except Exception:
+        pass
+
 
 def _check_threads_then_close(root):
     """
@@ -200,7 +222,6 @@ def _check_threads_then_close(root):
     destroy the root to exit mainloop. Otherwise keep polling.
     """
     global _acq_threads, _poll_after_id
-    # if there are no threads to wait for, safe to destroy
     if not _acq_threads:
         try:
             root.destroy()
@@ -216,6 +237,7 @@ def _check_threads_then_close(root):
             root.destroy()
         except Exception:
             pass
+
 
 def stop_and_save(root):
     """
@@ -233,16 +255,18 @@ def stop_and_save(root):
     except Exception:
         pass
 
-    # signal the acquisition threads to stop if they respect stop_flag
+    # signal the acquisition threads to stop
     stop_flag.set()
 
     # schedule checking whether threads are done
     root.after(100, _check_threads_then_close, root)
 
+
 def record_attack_stop():
     stop_time = datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S.%f')
     attack_stop_times.append(stop_time)
     print(f'You recorded an attack stop at {stop_time}. Don\'t press the button again during this pulse train.')
+
 
 def main():
     # get the setup for the cameras
@@ -256,9 +280,7 @@ def main():
         return
 
     for i, cam in enumerate(cam_list):
-        #try
-        cam.Init(camROI=[0,0,frame_width,frame_height])  # set ROI to desired width/height])
-        #cam.Init()
+        cam.Init()
 
     root = tk.Tk()
     root.title("Pulse Trigger")
@@ -270,31 +292,37 @@ def main():
     _poll_after_id = root.after(100, _poll_post_stim_queue, root)
 
     camera_timelog = []
-    stopwatch = time.time()
     threads = []
     _acq_threads = []
 
-    for i,cam in enumerate(cam_list):
-        if str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\0180439A_0':
+    # Create the display window on the main thread
+    try:
+        cv2.namedWindow("Behavior Box Live Feed", cv2.WINDOW_NORMAL)
+    except Exception as e:
+        print(f"Warning: could not create display window on main thread: {e}")
+
+    for i, cam in enumerate(cam_list):
+        uid = str(cam.GetUniqueID())
+        if uid == 'USB\\VID_1E10&PID_4000\\0180439A_0':
             print('This is moon!')
-        elif str(cam.GetUniqueID()) == 'USB\\VID_1E10&PID_4000\\01716E32_0':
+        elif uid == 'USB\\VID_1E10&PID_4000\\01716E32_0':
             print('This is star!')
         else:
             print('I don\'t recognize this camera! Proceeding anyway...')
-        acq_decision = input('Proceed with acquisition for camera ' + str(cam.GetUniqueID()) + '? Enter (y/n) and hit enter: ')
+        acq_decision = input('Proceed with acquisition for camera ' + uid + '? Enter (y/n) and hit enter: ')
         if acq_decision.lower() not in ('yes', 'y'):
-            print(f"Skipping acquisition for camera {cam.GetUniqueID()}.")
+            print(f"Skipping acquisition for camera {uid}.")
             continue
 
         cam_list[i].Init()
         setup_chunk_data(cam_list[i])
 
-        # Pass height, width in the order that acquire_images expects
-        # acquire_images(cam, writer, height, width)
-        # Note: acquire_images doesn't currently accept a stop_flag; if you refactor it,
-        # pass stop_flag into it so it can exit early when stop_flag.is_set() is True.
-        thread = ReturnValueThread(target=acquire_images, args=(cam_list[i], video_writer, frame_height, 
-                                                                frame_width,num_frames,FRAME_RATE_HZ), daemon=True)
+        # Start acquisition thread: pass stop_flag and frame_queue for live preview
+        thread = ReturnValueThread(
+            target=acquire_images,
+            args=(cam_list[i], video_writer, frame_height, frame_width, num_frames, FRAME_RATE_HZ, stop_flag, frame_queue),
+            daemon=False
+        )
         threads.append(thread)
         _acq_threads.append(thread)
 
@@ -307,7 +335,10 @@ def main():
         attack_end_button.pack(pady=10)
         save_button.pack(pady=10)
         thread.start()
-    
+
+    # start the display loop in main thread
+    root.after(30, display_frames, root)
+
     # enter GUI loop; stop_and_save will destroy root when threads are done
     root.mainloop()
 
@@ -323,7 +354,6 @@ def main():
     video_writer.release()
     print('Video saved to ' + video_file_path)
     stim_dict = {'start_times': start_times, 'attack_stop_times': attack_stop_times, 'end_times': end_times, 'on_status': on_status}
-    # stim_dict = {'start_times': start_times, 'attack_stop_times': attack_stop_times, 'end_times': end_times, 'on_status': on_status, 'stim_stopped_attack': list_attacks}
     stim_df = pd.DataFrame.from_dict(stim_dict)
     stim_df.to_csv(log_file_path)
     print(f"Time log saved to {log_file_path}")
@@ -334,6 +364,12 @@ def main():
                 line_content = ' '.join(map(str, entry))
                 file.write(line_content + '\n')
         print(f"Camera time log saved to {camera_log_file_path}")
+
+    # Clean up cv windows
+    try:
+        cv2.destroyAllWindows()
+    except Exception:
+        pass
 
     for cam in cam_list:
         try:
@@ -347,14 +383,6 @@ def main():
     cam_list.Clear()
     system.ReleaseInstance()
 
+
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
