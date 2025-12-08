@@ -23,17 +23,17 @@ and logs camera timestamp for each frame.
 
 Example/included code from Spinnaker, edited for our purposes.
 
-## downsample_video/downsampler.ipynb
+## `downsample_video/downsampler.ipynb`
 
 Downsamples videos down from default (60 Hz) to desired (20 Hz) frame rate, also resizes.
 
-## raster.py
+## `raster.py`
 
 Little GUI thing with key presses. Allows asynchronous hand-scoring (space-bar through video and mark 'true' timestamps of attack start/end using keys). Allows false alarm (remove attack start) and marking multiple ends.
 
 TO-DO: Save list to file and integrate with plotting code
 
-## raster.ipynb
+## `raster.ipynb`
 
 Plots actual 'raster' plot given two sheets (true attacks and real-time log), with comparison of real attack duration vs light on/off times, attack end.
 
